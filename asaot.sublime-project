@@ -23,6 +23,8 @@
     ],
     "settings":
     {
+        "sublimegdb_commandline": "gdb --interpreter=mi ./test",
+        "sublimegdb_workingdir": "${folder:${project_path:AOTCompiler.h}}/build",
         "sublimeclang_options":
         [
             "-I${home}/code/3rdparty/angelscript/sdk/angelscript/include/",

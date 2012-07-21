@@ -2,5 +2,5 @@
 
 AOTFunction::AOTFunction()
 {
-    labelCount = 0;
+    m_labelCount = 0;
 }
