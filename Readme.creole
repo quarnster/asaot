@@ -1,0 +1,47 @@
+=== Introduction ===
+
+While there already exists an [[http://angelcode.com/angelscript/|AngelScript]] JIT (just in time) Compiler for [[https://github.com/BlindMindStudios/AngelScript-JIT-Compiler|x86 and x86-64]], as well as my old and never finished JIT compiler for [[https://github.com/quarnster/asarmjit|arm]], there is as far as I know no AOT (ahead of time) compiler available.
+
+Let me first define what I mean with JIT and AOT compilers in the context of AngelScript today. The public JIT
+compilers I know of take the compiled AngelScript bytecode and turns it into machine code for the supported architecture. This machine code is written to memory marked as being executable and then when the normal AngelScript interpreter comes across a JitEntry byte-code it jumps to this executable memory instead of continuing its normal interpreter loop.
+
+The AOT compiler implementation provided here will instead take the AngelScript bytecode and turn it into C/C++ code which you can then compile with your normal compiler. There are both advantages and disadvantages to this approach and so this project might not be of interest at all for you depending on what you are using AngelScript for.
+
+Let me start by listing a few of the disadvantages:
+    * If you use AngelScript mainly as a plugin system where 3rd parties write scripts to extend the functionality of your application, this AOT is going to be of little use to you. If however your AngelScript code is a significant part of your software and it's reaching a point where it's starting to need fewer and fewer changes then the AOT might be perfect for you.
+    * You need to run your program first to generate the AOT code, and then compile and link this newly generated code and run again for the AOT to have any effect. This will limit iteration speed as the program will have to be stopped, compiled, re-linked and started again. In the future I might implement (or if someone submits a pull request) a checksum check to see if the compiled script function is different from what the script actually is doing and if it is fall back to the regular interpreter for that function.
+
+Now to some of the advantages of this approach over a JIT:
+    * The AOT Compiler is minimal in code and the bits that generate the AOT code is in itself generated straight from AngelScript's code base. This means that:
+        ## It will always be in sync with the AngelScript interpreter since the same code is used
+        ## If new byte codes are added, changed or removed, it'll automatically adapt to this with you just needing to re-run the script that generates the bytecode generating code.
+        ## It will always do exactly what AngelScript does with the bytecode. Again as it's the same code the instances where you run into bugs where the compiled code behaves differently from the interpreter should be slim to none.
+    * As it's just using basic C/C++ code to generate more C/C++ code compilable with your regular toolchain, the AOT Compiler is machine architecture agnostic whereas JIT compilers only exist on very specific architectures. If you can compile and run AngelScript, you can compile and run the AOT compiler. The AngelScript features page mentions Windows, Linux, MacOS X, XBox, XBox 360, PS2, PSP, PS3, Dreamcast, Nintendo DS, Windows Mobile, iPhone, BSD, and Android, with x86, amd64, sh4, mips, ppc, ppc64, arm, so that's what I'll do too ;)
+    * No need for allocating executable memory. Not all platforms allow you to allocate executable memory to prevent malicious software or piracy so using a JIT compiler would be impossible on those platforms, but this AOT implementation works just fine.
+
+
+=== License ===
+Like [[http://angelcode.com/angelscript/|AngelScript]] this code is licensed under the zlib license.
+
+{{{
+Copyright (c) 2012 Fredrik Ehnbom
+
+This software is provided 'as-is', without any express or implied
+warranty. In no event will the authors be held liable for any damages
+arising from the use of this software.
+
+Permission is granted to anyone to use this software for any purpose,
+including commercial applications, and to alter it and redistribute it
+freely, subject to the following restrictions:
+
+   1. The origin of this software must not be misrepresented; you must not
+   claim that you wrote the original software. If you use this software
+   in a product, an acknowledgment in the product documentation would be
+   appreciated but is not required.
+
+   2. Altered source versions must be plainly marked as such, and must not be
+   misrepresented as being the original software.
+
+   3. This notice may not be removed or altered from any source
+   distribution.
+}}}
