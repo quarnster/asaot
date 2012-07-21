@@ -20,8 +20,14 @@
  *    3. This notice may not be removed or altered from any source
  *    distribution.
  */
-#include "AOTCompiler.h"
 
+#if defined(__LP64__) || defined(__amd64__) || defined(__x86_64__) || defined(_M_X64)
+        #ifndef AS_64BIT_PTR
+                #define AS_64BIT_PTR
+        #endif
+#endif
+
+#include "AOTCompiler.h"
 
 AOTCompiler::AOTCompiler(AOTLinkerEntry *linkerTable, unsigned int linkerTableSize)
 : m_linkerTable(linkerTable), m_linkerTableSize(linkerTableSize)
@@ -75,6 +81,8 @@ int AOTCompiler::CompileFunction(asIScriptFunction *function, asJITFunction *out
         {
             snprintf(buf, 128, "        case %d:\n", ++f.m_labelCount);
             f.m_output += buf;
+            snprintf(buf, 128, "            l_bc += %d;\n", asBCTypeSize[asBCInfo[asBC_JitEntry].type]);
+            f.m_output += buf;
             asBC_PTRARG(byteCode) = f.m_labelCount;
         }
         else if (f.m_entry == 0)
@@ -115,15 +123,27 @@ void AOTCompiler::DumpCode()
         output += (*i).m_name;
         output += "(asSVMRegisters * registers, asPWORD jitArg)\n";
         output += "{\n";
-        output += "    printf(\"In aot compiled function!\\n\");\n";
+//        output += "    printf(\"In aot compiled function %%s, %%lx!\\n\", __FUNCTION__, jitArg);\n";
         output += "    asDWORD * l_bc = registers->programPointer;\n";
         output += "    asDWORD * l_sp = registers->stackPointer;\n";
         output += "    asDWORD * l_fp = registers->stackFramePointer;\n";
         output += "    asCContext * context = (asCContext*) registers->ctx;\n";
+        // char buf[32];
+        // snprintf(buf, 32, "    l_bc += %d;\n", asBCTypeSize[asBCInfo[asBC_JitEntry].type]);
+
+        // output += buf;
+        // output += "    goto ";
+        // output += (*i).m_name;
+        // output += "_end;";
         output += "    switch (jitArg)\n";
         output += "    {\n";
         output += (*i).m_output;
-        output += "     }\n";
+        output += "    }\n";
+        output += (*i).m_name;
+        output += "_end:\n";
+        output += "    registers->programPointer    = l_bc;\n";
+        output += "    registers->stackPointer      = l_sp;\n";
+        output += "    registers->stackFramePointer = l_fp;\n";
         output += "}\n";
     }
     char buf[512];

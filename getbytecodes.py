@@ -44,6 +44,7 @@ print "#include \"AOTCompiler.h\""
 print ""
 print "#define ASSERT assert"
 print "#define asASSERT(x) "
+print "#define BUFSIZE 512 "
 print ""
 print "void AOTCompiler::ProcessByteCode(asDWORD *byteCode, asUINT offset, asEBCInstr op, AOTFunction &func)"
 print "{"
@@ -81,6 +82,15 @@ for bytecode in bytecodes:
         line = line.replace("CallLine", "context->CallLine")
         line = line.replace("SetInternal", "context->SetInternal")
         line = line.replace("PopCallState", "context->PopCallState")
+        if "return" in line:
+            line = line.replace("return;", """{
+            char aotbuf3[BUFSIZE];
+            snprintf(aotbuf3, BUFSIZE, "goto %s_end;\\n", func.m_name.c_str());
+            func.m_output += aotbuf3;
+}
+""")
+            print line
+            continue
 
         if commentre.match(line) or len(line.strip()) == 0:
             continue
@@ -102,19 +112,20 @@ for bytecode in bytecodes:
         if count == 0:
             print "            func.m_output += \"%s\\n\";" % line
         else:
-            print "            char aotbuf[128];"
-            print "            snprintf(aotbuf, 128, \"%s\\n\", %s);" % (line, ",".join(["aottmp%d" % d for d in range(count)]))
+            print "            char aotbuf[BUFSIZE];"
+            print "            snprintf(aotbuf, BUFSIZE, \"%s\\n\", %s);" % (line, ",".join(["aottmp%d" % d for d in range(count)]))
             print "            func.m_output += aotbuf;"
         if jump:
-            print "                char aotbuf2[128];"
-            print "                snprintf(aotbuf2, 128, \"                    goto bytecodeoffset_%d;\\n\", target);"
+            print "                char aotbuf2[BUFSIZE];"
+            print "                snprintf(aotbuf2, BUFSIZE, \"                    goto bytecodeoffset_%d;\\n\", target);"
             print "            func.m_output += aotbuf2;"
             print "            func.m_output += \"                }\\n\";"
             print "            }"
         if count != 0:
             print "}"
-        if dobreak:
-            break
+
+    if bytecode[0] == "asBC_RET" or bytecode[0] == "asBC_CALL":
+            print "           func.m_output += \"         goto \" + func.m_name + \"_end;\\n\";"
     print "            break;"
     print "        }"
 

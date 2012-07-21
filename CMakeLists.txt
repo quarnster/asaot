@@ -19,3 +19,4 @@ add_library(asaot AOTCompiler.cpp AOTFunction.cpp generated.cpp)
 
 add_executable(test test.cpp ${PROJECT_BINARY_DIR}/aot_generated_code.cpp)
 target_link_libraries(test -L${ASPATH}/lib asaot Angelscript)
+
