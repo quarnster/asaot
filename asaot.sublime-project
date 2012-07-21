@@ -1,0 +1,34 @@
+{
+	"folders":
+	[
+		{
+			"path": "/Users/quarnster/code/asaot"
+		}
+	],
+    "build_systems":
+    [
+        {
+            "name": "asaot",
+            "cmd": ["make"],
+            "file_regex": "^(..[^:]*):([0-9]+):?([0-9]+)?:? (.*)$",
+            "working_dir": "${project_path}/build",
+            "variants":
+             [
+                {
+                    "name": "clean",
+                    "cmd": ["make", "clean"]
+                }
+            ]
+        }
+    ],
+    "settings":
+    {
+        "sublimeclang_options":
+        [
+            "-I${home}/code/3rdparty/angelscript/sdk/angelscript/include/",
+            "-I${home}/code/3rdparty/angelscript/sdk/angelscript/source/",
+            "-I${folder:${project_path:AOTCompiler.h}}",
+            "-ferror-limit=0"
+        ]
+    }
+}
