@@ -8,10 +8,14 @@ add_custom_command(
     DEPENDS ${PROJECT_SOURCE_DIR}/getbytecodes.py
      )
 
+if(NOT EXISTS ${PROJECT_BINARY_DIR}/aot_generated_code.cpp)
+    file(WRITE ${PROJECT_BINARY_DIR}/aot_generated_code.cpp "")
+endif()
+
 include_directories(${ASPATH}/include ${ASPATH}/source .)
 
 add_library(asaot AOTCompiler.cpp AOTFunction.cpp generated.cpp)
 
 
-add_executable(test test.cpp)
+add_executable(test test.cpp ${PROJECT_BINARY_DIR}/aot_generated_code.cpp)
 target_link_libraries(test -L${ASPATH}/lib asaot Angelscript)

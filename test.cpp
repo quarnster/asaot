@@ -6,8 +6,8 @@ static const char *script =
 "int TestInt(int a, int b, int c)          \n"
 "{                                         \n"
 "    int ret = 0;                          \n"
-"    for (int i = 0; i < 2500; i++)       \n"
-"        for (int j = 0; j < 100; j++)     \n"
+"    for (int i = 0; i < 25000; i++)       \n"
+"        for (int j = 0; j < 1000; j++)    \n"
 "        {                                 \n"
 "           ret += a*b+i*j;                \n"
 "           ret += c * 2;                  \n"
@@ -45,21 +45,24 @@ public:
     }
 };
 
+
+extern unsigned int AOTLinkerTableSize;
+extern AOTLinkerEntry AOTLinkerTable[];
 int main(int argc, char ** argv)
 {
-    printf("---------------------------------------------\n");
-    printf("%s\n\n", TESTNAME);
-    printf("AngelScript 2.15.0             : 0.4222 secs\n");
-
-    printf("\nBuilding...\n");
-
     asIScriptEngine *engine = asCreateScriptEngine(ANGELSCRIPT_VERSION);
     COutStream out;
     engine->SetMessageCallback(asMETHOD(COutStream,Callback), &out, asCALL_THISCALL);
     engine->SetEngineProperty(asEP_BUILD_WITHOUT_LINE_CUES, 1);
     engine->SetEngineProperty(asEP_INCLUDE_JIT_INSTRUCTIONS, 1);
+    engine->SetEngineProperty(asEP_OPTIMIZE_BYTECODE, 1);
 
+#define AOT_GENERATE_CODE 1
+#if !AOT_GENERATE_CODE
+    asIJITCompiler *jit = new AOTCompiler(AOTLinkerTable, AOTLinkerTableSize);
+#else
     asIJITCompiler *jit = new AOTCompiler();
+#endif
     if (argc != 2)
     {
         engine->SetJITCompiler(jit);
@@ -99,8 +102,10 @@ int main(int argc, char ** argv)
         printf("Time = %f secs\n", time);
         printf("returned: %d\n", (int) ctx->GetReturnDWord());
     }
+#if AOT_GENERATE_CODE
     AOTCompiler *c = (AOTCompiler*) jit;
     c->DumpCode();
+#endif
 
 
     ctx->Release();

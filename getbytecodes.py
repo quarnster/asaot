@@ -52,13 +52,13 @@ for bytecode in bytecodes:
             line = line.replace("break;", "")
 
         line = line.replace("%", "%%")
-        line = line.replace("this", "&context")
-        line = line.replace("m_", "context.m_")
-        line = line.replace("CallSc", "context.CallSc")
-        line = line.replace("CallInt", "context.CallInt")
-        line = line.replace("CallLine", "context.CallLine")
-        line = line.replace("SetInternal", "context.SetInternal")
-        line = line.replace("PopCallState", "context.PopCallState")
+        line = line.replace("this", "context")
+        line = line.replace("m_", "context->m_")
+        line = line.replace("CallSc", "context->CallSc")
+        line = line.replace("CallInt", "context->CallInt")
+        line = line.replace("CallLine", "context->CallLine")
+        line = line.replace("SetInternal", "context->SetInternal")
+        line = line.replace("PopCallState", "context->PopCallState")
 
         if commentre.match(line) or len(line.strip()) == 0:
             continue
