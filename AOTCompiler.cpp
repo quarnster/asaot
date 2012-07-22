@@ -41,16 +41,22 @@ AOTCompiler::~AOTCompiler()
 std::string AOTCompiler::GetAOTName(asIScriptFunction *function)
 {
     std::string name;
+    name += "___";
     if (function->GetModuleName())
         name += function->GetModuleName();
+    name += "_";
     if (function->GetNamespace())
         name += function->GetNamespace();
+    name += "_";
     if (function->GetScriptSectionName())
         name += function->GetScriptSectionName();
+    name += "_";
     if (function->GetObjectName())
         name += function->GetObjectName();
+    name += "_";
     if (function->GetName())
         name += function->GetName();
+    name += "_";
     return name;
 }
 
@@ -61,6 +67,10 @@ int AOTCompiler::CompileFunction(asIScriptFunction *function, asJITFunction *out
     asDWORD *byteCode = function->GetByteCode(&length);
     asUINT   offset = 0;
     asDWORD *end = byteCode + length;
+
+    if (length == 0)
+        return asERROR;
+
     AOTFunction f;
 
     f.m_name = GetAOTName(function);
@@ -75,6 +85,7 @@ int AOTCompiler::CompileFunction(asIScriptFunction *function, asJITFunction *out
             }
         }
     }
+    f.m_output += "        case 0:\n";
 
     while ( byteCode < end )
     {

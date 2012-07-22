@@ -34,7 +34,7 @@ data          = re.search(r"(asCContext::ExecuteNext.*?\n}\n)", data, re.DOTALL)
 commentre     = re.compile(r"^\s*//")
 jumpre        = re.compile(r"\s*l_bc\s*\+=[\s\d+]+asBC")
 argre         = re.compile(r"(\w+ARG\w*)\(l_bc([^)]*)\)")
-callscriptre  = re.compile(r"(m_regs\.stackFramePointer\s*=\s*l_fp;\s+?)(.*?)([ \t]*)(Call(InterfaceMethod|ScriptFunction)\((.*?)\);)(\s+.*?l_fp\s+=.*?m_regs\.stackFramePointer;)", re.DOTALL)
+callscriptre  = re.compile(r"(m_regs\.stackFramePointer\s*=\s*l_fp;\s+?)(.*?)([ \t]*)(Call(InterfaceMethod|ScriptFunction)\((.*?)\);)(\s+.*?l_fp\s+=.*?m_regs\.stackFramePointer;)(.*?if.*?;)", re.DOTALL)
 
 bytecodes = re.findall(r"case\s+(a\w+):(.*?)(?=case\s+\w+:)", data, re.DOTALL)
 print "#include <angelscript.h>"
@@ -70,15 +70,20 @@ for bytecode in bytecodes:
     print "            func.m_output += \"asm(\\\"# %s\\\");\\n\";" % bytecode[0]
 
     data = bytecode[1]
+    # if bytecode[0] == "asBC_FREE":
+    #     # These opcodes don't work at the moment so fall back to the interpreter
+    #     data = "            func.m_output += \"goto \" + func.m_name + \"_end;\\n\"; __RAW__"
+
     data = callscriptre.sub(r"""\1\3
 \2
 \3\4
 #if %d __RAW__
             asDWORD * expected = l_bc;
             int i = asBC_INTARG(byteCode); __RAW__
+\8
             func.m_output += "\3if (\6->jitFunction == " + GetAOTName(\6) + ")\\n"; __RAW__
 \3{
-            func.m_output += "\3    " + GetAOTName(\6) + "(registers, 1);\\n"; __RAW__
+            func.m_output += "\3    " + GetAOTName(\6) + "(registers, 0);\\n"; __RAW__
 \3}
 \7
 \3if (l_bc != expected)
@@ -134,9 +139,11 @@ for bytecode in bytecodes:
 
         count = 0
         for m in argre.finditer(line):
+            if "PTR" in m.group(1):
+                continue
             if count == 0:
                 print "{"
-            print "            int aottmp%d = %s(byteCode%s);" % (count, m.group(1), m.group(2))
+            print "            asDWORD aottmp%d = %s(byteCode%s);" % (count, m.group(1), m.group(2))
             line = line.replace(m.string[m.start(1):m.end(2)+1], "%d")
             count += 1
 

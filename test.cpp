@@ -22,28 +22,35 @@
  */
 #include "AOTCompiler.h"
 #include <sys/time.h>
+#include <scriptstdstring/scriptstdstring.h>
 
 #define TESTNAME "asJITTest"
 static const char *script =
-"int add(int a, int b)                     \n"
-"{                                         \n"
-"    return a+b;                           \n"
-"}                                         \n"
-"int mul(int a, int b)                     \n"
-"{                                         \n"
-"    return a*b;                           \n"
-"}                                         \n"
-"int TestInt(int a, int b, int c)          \n"
-"{                                         \n"
-"    int ret = 0;                          \n"
-"    for (int i = 0; i < 2500; i++)       \n"
-"        for (int j = 0; j < 1000; j++)    \n"
-"        {                                 \n"
-"           ret += add(mul(a,b), mul(a,b)); \n"
-"           ret += mul(c,2);               \n"
-"        }                                 \n"
-"    return ret;                           \n"
-"}                                         \n";
+"class TestClass                              \n"
+"{                                            \n"
+"    void test() {print(\"hello world!\\n\");}\n"
+"};                                           \n"
+"int add(int a, int b)                        \n"
+"{                                            \n"
+"    return a+b;                              \n"
+"}                                            \n"
+"int mul(int a, int b)                        \n"
+"{                                            \n"
+"    return a*b;                              \n"
+"}                                            \n"
+"int TestInt(int a, int b, int c)             \n"
+"{                                            \n"
+"    TestClass t;                             \n"
+"    t.test();                                \n"
+"    int ret = 0;                             \n"
+"    for (int i = 0; i < 2500; i++)           \n"
+"        for (int j = 0; j < 1000; j++)       \n"
+"        {                                    \n"
+"           ret += add(mul(a,b), mul(a,b));   \n"
+"           ret += mul(c,2);                  \n"
+"        }                                    \n"
+"    return ret;                              \n"
+"}                                            \n";
 
 extern "C"
 {
@@ -75,6 +82,10 @@ public:
     }
 };
 
+void print(const std::string &str)
+{
+    printf(str.c_str());
+}
 
 extern unsigned int AOTLinkerTableSize;
 extern AOTLinkerEntry AOTLinkerTable[];
@@ -86,6 +97,8 @@ int main(int argc, char ** argv)
     engine->SetEngineProperty(asEP_BUILD_WITHOUT_LINE_CUES, 1);
     engine->SetEngineProperty(asEP_INCLUDE_JIT_INSTRUCTIONS, 1);
     engine->SetEngineProperty(asEP_OPTIMIZE_BYTECODE, 1);
+    RegisterStdString(engine);
+    engine->RegisterGlobalFunction("void print(const string& in)", asFUNCTION(print), asCALL_CDECL);
 
 #define AOT_GENERATE_CODE 1
 #if !AOT_GENERATE_CODE
