@@ -29,8 +29,8 @@
 
 #include "AOTCompiler.h"
 
-AOTCompiler::AOTCompiler(AOTLinkerEntry *linkerTable, unsigned int linkerTableSize)
-: m_linkerTable(linkerTable), m_linkerTableSize(linkerTableSize)
+AOTCompiler::AOTCompiler(AOTLinker *linker)
+: m_linker(linker)
 {
 }
 
@@ -71,27 +71,23 @@ int AOTCompiler::CompileFunction(asIScriptFunction *function, asJITFunction *out
     if (length == 0)
         return asERROR;
 
-    AOTFunction f;
+    AOTFunction f(function);
 
     f.m_name = GetAOTName(function);
 
-    if (m_linkerTable && m_linkerTableSize)
-    {
-        for (unsigned int i = 0; i < m_linkerTableSize; i++)
-        {
-            if (f.m_name == m_linkerTable[i].name)
-            {
-                f.m_entry = m_linkerTable[i].entry;
-            }
-        }
-    }
+    AOTLinker::LinkerResult ret = m_linker->LookupFunction(&f, output);
+    if (ret == AOTLinker::AllDone)
+        return asSUCCESS;
+    if (ret == AOTLinker::ErrorOccurred)
+        return asERROR;
+
     f.m_output += "        case 0:\n";
 
     while ( byteCode < end )
     {
         asEBCInstr op = asEBCInstr(*(asBYTE*)byteCode);
         char buf[128];
-        if (f.m_entry == 0)
+        if (ret == AOTLinker::GenerateCode)
         {
             snprintf(buf, 128, "bytecodeoffset_%d:\n", offset);
             f.m_output += buf;
@@ -104,7 +100,7 @@ int AOTCompiler::CompileFunction(asIScriptFunction *function, asJITFunction *out
             f.m_output += buf;
             asBC_PTRARG(byteCode) = f.m_labelCount;
         }
-        else if (f.m_entry == 0)
+        else if (ret == AOTLinker::GenerateCode)
         {
             ProcessByteCode(byteCode, offset, op, f);
         }
@@ -114,9 +110,8 @@ int AOTCompiler::CompileFunction(asIScriptFunction *function, asJITFunction *out
     }
     m_functions.push_back(f);
 
-    if (f.m_entry != 0)
+    if (ret != AOTLinker::GenerateCode)
     {
-        *output = f.m_entry;
         return asSUCCESS;
     }
 
@@ -165,17 +160,8 @@ void AOTCompiler::SaveCode(asIBinaryStream *stream)
         output += "    registers->stackFramePointer = l_fp;\n";
         output += "}\n";
     }
-    char buf[512];
-    snprintf(buf, 512, "\nunsigned int AOTLinkerTableSize = %d;\n", (int) m_functions.size());
 
-    output += buf;
-    output += "AOTLinkerEntry AOTLinkerTable[] =\n{\n";
-    for (std::vector<AOTFunction>::iterator i = m_functions.begin(); i < m_functions.end(); i++)
-    {
-        snprintf(buf, 512, "{\"%s\", %s},\n", (*i).m_name.c_str(), (*i).m_name.c_str());
-        output += buf;
-    }
-    output += "};\n";
+    m_linker->LinkTimeCodeGeneration(output, m_functions);
 
     stream->Write(output.c_str(), output.length());
 }

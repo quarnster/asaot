@@ -24,11 +24,32 @@
 #define __INCLUDED_AOTLINKER_H
 
 #include <angelscript.h>
+#include "AOTFunction.h"
+#include <string>
+#include <vector>
 
-typedef struct
+class AOTLinker
 {
-    const char name[256];
-    asJITFunction entry;
-} AOTLinkerEntry;
+public:
+    virtual ~AOTLinker() {}
+    enum LinkerResult
+    {
+        /// Tell the compiler to generate code
+        GenerateCode,
+        /// Tell the compiler that the linking was successful, so don't generate code,
+        /// but do modify the jitEntry bytecode arguments to the appropriate values.
+        LinkSuccessful,
+        /// Just make the Compiler return immediately without further action with a successful error code
+        AllDone,
+        /// Just make the Compiler return immediately without further action with an unsuccessful error code
+        ErrorOccurred
+    };
+    /// Used to look up AOT compiled script functions and provide the asJITFunction
+    /// to AngelScript
+    virtual LinkerResult LookupFunction(AOTFunction *function, asJITFunction *jitFunction) = 0;
+
+    /// Any additional code additions or transformations the Linker wants to do
+    virtual void LinkTimeCodeGeneration(std::string &code, std::vector<AOTFunction> &compiledFunctions) = 0;
+};
 
 #endif

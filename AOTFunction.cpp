@@ -22,7 +22,17 @@
  */
 #include "AOTFunction.h"
 
-AOTFunction::AOTFunction()
-: m_labelCount(0), m_entry(0)
+AOTFunction::AOTFunction(asIScriptFunction* func)
+: m_labelCount(0), m_scriptFunction(func)
 {
+}
+
+const std::string &AOTFunction::GetName() const
+{
+    return m_name;
+}
+
+const asIScriptFunction* AOTFunction::GetScriptFunction() const
+{
+    return m_scriptFunction;
 }

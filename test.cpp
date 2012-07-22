@@ -129,6 +129,62 @@ private:
     FILE *m_fp;
 };
 
+typedef struct
+{
+    const char name[256];
+    asJITFunction entry;
+} AOTLinkerEntry;
+
+class SimpleAOTLinker : public AOTLinker
+{
+public:
+    SimpleAOTLinker(AOTLinkerEntry *linkerTable=NULL, unsigned int linkerTableSize=-1)
+    : m_linkerTable(linkerTable), m_linkerTableSize(linkerTableSize)
+    {
+
+    }
+
+    virtual LinkerResult LookupFunction(AOTFunction *function, asJITFunction *jitFunction)
+    {
+        if (m_linkerTable && m_linkerTableSize)
+        {
+            for (unsigned int i = 0; i < m_linkerTableSize; i++)
+            {
+                if (function->GetName() == m_linkerTable[i].name)
+                {
+                    *jitFunction = m_linkerTable[i].entry;
+                    return LinkSuccessful;
+                }
+            }
+        }
+        return GenerateCode;
+    }
+
+    virtual void LinkTimeCodeGeneration(std::string &code, std::vector<AOTFunction> &compiledFunctions)
+    {
+        code += "typedef struct\n";
+        code += "{\n";
+        code += "    const char name[256];\n";
+        code += "    asJITFunction entry;\n";
+        code += "} AOTLinkerEntry;\n";
+        code += "";
+        char buf[512];
+        snprintf(buf, 512, "\nunsigned int AOTLinkerTableSize = %d;\n", (int) compiledFunctions.size());
+
+        code += buf;
+        code += "AOTLinkerEntry AOTLinkerTable[] =\n{\n";
+        for (std::vector<AOTFunction>::iterator i = compiledFunctions.begin(); i < compiledFunctions.end(); i++)
+        {
+            snprintf(buf, 512, "{\"%s\", %s},\n", (*i).GetName().c_str(), (*i).GetName().c_str());
+            code += buf;
+        }
+        code += "};\n";
+    }
+private:
+    AOTLinkerEntry *m_linkerTable;
+    unsigned int m_linkerTableSize;
+};
+
 void print(const std::string &str)
 {
     printf(str.c_str());
@@ -149,10 +205,11 @@ int main(int argc, char ** argv)
 
 #define AOT_GENERATE_CODE 1
 #if !AOT_GENERATE_CODE
-    asIJITCompiler *jit = new AOTCompiler(AOTLinkerTable, AOTLinkerTableSize);
+    SimpleAOTLinker *linker = new SimpleAOTLinker(AOTLinkerTable, AOTLinkerTableSize);
 #else
-    asIJITCompiler *jit = new AOTCompiler();
+    SimpleAOTLinker *linker = new SimpleAOTLinker(NULL, 0);
 #endif
+    asIJITCompiler *jit = new AOTCompiler(linker);
     if (argc != 2)
     {
         engine->SetJITCompiler(jit);

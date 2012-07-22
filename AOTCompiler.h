@@ -35,7 +35,7 @@
 class AOTCompiler : public asIJITCompiler
 {
 public:
-    AOTCompiler(AOTLinkerEntry *linkerTable=NULL, unsigned int linkerTableSize=-1);
+    AOTCompiler(AOTLinker *linker);
     virtual ~AOTCompiler();
     virtual int CompileFunction(asIScriptFunction *function, asJITFunction *output);
     virtual void ReleaseJITFunction(asJITFunction func);
@@ -44,8 +44,7 @@ public:
 private:
     std::string GetAOTName(asIScriptFunction *func);
     asIScriptEngine *m_engine;
-    AOTLinkerEntry *m_linkerTable;
-    unsigned int m_linkerTableSize;
+    AOTLinker *m_linker;
     void ProcessByteCode(asDWORD *byteCode, asUINT offset, asEBCInstr op, AOTFunction &f);
     std::vector<AOTFunction> m_functions;
 };

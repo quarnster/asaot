@@ -30,13 +30,17 @@
 class AOTFunction
 {
 public:
-    AOTFunction();
+    AOTFunction(asIScriptFunction *func);
 
-    std::string m_output;
-    std::string m_name;
-    unsigned int m_labelCount;
+    const std::string&       GetName() const;
+    const asIScriptFunction* GetScriptFunction() const;
+private:
+    std::string              m_output;
+    std::string              m_name;
+    unsigned int             m_labelCount;
 
-    asJITFunction m_entry;
+    asIScriptFunction*       m_scriptFunction;
+    friend class AOTCompiler;
 };
 
 #endif
