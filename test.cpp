@@ -21,7 +21,11 @@
  *    distribution.
  */
 #include "AOTCompiler.h"
+#if _MSC_VER
+#include <windows.h>
+#else
 #include <sys/time.h>
+#endif
 #include <scriptstdstring/scriptstdstring.h>
 
 #define TESTNAME "asJITTest"
@@ -60,12 +64,32 @@ int __aeabi_idiv(int a, int b)
 }
 }
 
+#if _MSC_VER
+double GetTime()
+{
+    static LARGE_INTEGER start;
+    static LARGE_INTEGER frequency;
+    static bool firstCall = true;
+
+    if (firstCall)
+    {
+        firstCall = false;
+        QueryPerformanceFrequency(&frequency);
+        QueryPerformanceCounter(&start);
+    }
+    LARGE_INTEGER now;
+    QueryPerformanceCounter(&now);
+
+    return (now.QuadPart-start.QuadPart)/(double)frequency.QuadPart;
+}
+#else
 double GetTime()
 {
     struct timeval t;
     gettimeofday(&t, 0);
     return t.tv_sec + (t.tv_usec / (1000.0 * 1000.0));
 }
+#endif
 
 
 class COutStream

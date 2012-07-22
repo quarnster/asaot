@@ -28,6 +28,10 @@
 #include "AOTFunction.h"
 #include "AOTLinker.h"
 
+#if _MSC_VER
+   #define snprintf _snprintf_s
+#endif
+
 class AOTCompiler : public asIJITCompiler
 {
 public:

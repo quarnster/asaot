@@ -67,7 +67,6 @@ for bytecode in bytecodes:
     print "        case %s:" % bytecode[0]
     print "        {"
     print "            func.m_output += \"// %s\\n\";" % bytecode[0]
-    print "            func.m_output += \"asm(\\\"# %s\\\");\\n\";" % bytecode[0]
 
     data = bytecode[1]
     # if bytecode[0] == "asBC_FREE":
