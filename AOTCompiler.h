@@ -38,6 +38,8 @@ public:
 
     void DumpCode();
 private:
+    std::string GetAOTName(asIScriptFunction *func);
+    asIScriptEngine *m_engine;
     AOTLinkerEntry *m_linkerTable;
     unsigned int m_linkerTableSize;
     void ProcessByteCode(asDWORD *byteCode, asUINT offset, asEBCInstr op, AOTFunction &f);

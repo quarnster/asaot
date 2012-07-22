@@ -38,24 +38,32 @@ AOTCompiler::~AOTCompiler()
 {
 }
 
+std::string AOTCompiler::GetAOTName(asIScriptFunction *function)
+{
+    std::string name;
+    if (function->GetModuleName())
+        name += function->GetModuleName();
+    if (function->GetNamespace())
+        name += function->GetNamespace();
+    if (function->GetScriptSectionName())
+        name += function->GetScriptSectionName();
+    if (function->GetObjectName())
+        name += function->GetObjectName();
+    if (function->GetName())
+        name += function->GetName();
+    return name;
+}
+
 int AOTCompiler::CompileFunction(asIScriptFunction *function, asJITFunction *output)
 {
+    m_engine = function->GetEngine();
     asUINT   length;
     asDWORD *byteCode = function->GetByteCode(&length);
     asUINT   offset = 0;
     asDWORD *end = byteCode + length;
     AOTFunction f;
 
-    if (function->GetModuleName())
-        f.m_name += function->GetModuleName();
-    if (function->GetNamespace())
-        f.m_name += function->GetNamespace();
-    if (function->GetScriptSectionName())
-        f.m_name += function->GetScriptSectionName();
-    if (function->GetObjectName())
-        f.m_name += function->GetObjectName();
-    if (function->GetName())
-        f.m_name += function->GetName();
+    f.m_name = GetAOTName(function);
 
     if (m_linkerTable && m_linkerTableSize)
     {

@@ -30,13 +30,15 @@ f = open(as_context_file)
 data = f.read()
 f.close()
 
-data = re.search(r"(asCContext::ExecuteNext.*?\n}\n)", data, re.DOTALL).group(1)
-commentre = re.compile(r"^\s*//")
-jumpre = re.compile(r"\s*l_bc\s*\+=[\s\d+]+asBC")
-argre = re.compile(r"(\w+ARG\w*)\(l_bc([^)]*)\)")
+data          = re.search(r"(asCContext::ExecuteNext.*?\n}\n)", data, re.DOTALL).group(1)
+commentre     = re.compile(r"^\s*//")
+jumpre        = re.compile(r"\s*l_bc\s*\+=[\s\d+]+asBC")
+argre         = re.compile(r"(\w+ARG\w*)\(l_bc([^)]*)\)")
+callscriptre  = re.compile(r"(m_regs\.stackFramePointer\s*=\s*l_fp;\s+?)(.*?)([ \t]*)(Call(InterfaceMethod|ScriptFunction)\((.*?)\);)(\s+.*?l_fp\s+=.*?m_regs\.stackFramePointer;)", re.DOTALL)
 
 bytecodes = re.findall(r"case\s+(a\w+):(.*?)(?=case\s+\w+:)", data, re.DOTALL)
 print "#include <angelscript.h>"
+print "#include <as_scriptengine.h>"
 print "#include <stdio.h>"
 print "#include <assert.h>"
 print "#include <math.h>"
@@ -67,7 +69,27 @@ for bytecode in bytecodes:
     print "            func.m_output += \"// %s\\n\";" % bytecode[0]
     print "            func.m_output += \"asm(\\\"# %s\\\");\\n\";" % bytecode[0]
 
-    lines = bytecode[1].split("\n")
+    data = bytecode[1]
+    data = callscriptre.sub(r"""\1\3
+\2
+\3\4
+#if %d __RAW__
+            asDWORD * expected = l_bc;
+            int i = asBC_INTARG(byteCode); __RAW__
+            func.m_output += "\3if (\6->jitFunction == " + GetAOTName(\6) + ")\\n"; __RAW__
+\3{
+            func.m_output += "\3    " + GetAOTName(\6) + "(registers, 1);\\n"; __RAW__
+\3}
+\7
+\3if (l_bc != expected)
+\3    __PLACEHOLDER2__
+#else __RAW__
+\7
+\3    __PLACEHOLDER2__
+#endif __RAW__
+\3""" % (bytecode[0] == "asBC_CALL" or bytecode[0] == "asBC_CALLINTF"), data)
+
+    lines = data.split("\n")
     for line in lines:
         dobreak = False
         if "break;" in line:
@@ -76,21 +98,34 @@ for bytecode in bytecodes:
 
         line = line.replace("%", "%%")
         line = line.replace("this", "context")
-        line = line.replace("m_", "context->m_")
         line = line.replace("CallSc", "context->CallSc")
         line = line.replace("CallInt", "context->CallInt")
         line = line.replace("CallLine", "context->CallLine")
         line = line.replace("SetInternal", "context->SetInternal")
         line = line.replace("PopCallState", "context->PopCallState")
-        if "return" in line:
-            line = line.replace("return;", """{
-            char aotbuf3[BUFSIZE];
-            snprintf(aotbuf3, BUFSIZE, "goto %s_end;\\n", func.m_name.c_str());
-            func.m_output += aotbuf3;
-}
-""")
+
+
+        if "__RAW__" in line:
+            line = line.replace("__RAW__", "")
+            idx = line.rfind("m_engine")
+            if idx != -1:
+                line = "%s%s" % (line[:idx].replace("m_engine", "context->m_engine"), line[idx:].replace("m_engine", "((asCScriptEngine*)m_engine)"))
             print line
             continue
+
+        line = line.replace("m_", "context->m_")
+
+        if "return" in line:
+            line =  """            func.m_output += "%sgoto " + func.m_name + "_end;\\n";""" % line.replace("return;", "")
+            print line
+            continue
+
+        if "__PLACEHOLDER2__" in line:
+            line = "            func.m_output += \"%sgoto \" + func.m_name + \"_end;\\n\";" % line.replace("__PLACEHOLDER2__", "")
+            print line
+            continue
+
+
 
         if commentre.match(line) or len(line.strip()) == 0:
             continue
@@ -124,8 +159,8 @@ for bytecode in bytecodes:
         if count != 0:
             print "}"
 
-    if bytecode[0] == "asBC_RET" or bytecode[0] == "asBC_CALL":
-            print "           func.m_output += \"         goto \" + func.m_name + \"_end;\\n\";"
+    if bytecode[0] == "asBC_RET":
+            print "            func.m_output += \"      goto \" + func.m_name + \"_end;\\n\";"
     print "            break;"
     print "        }"
 
