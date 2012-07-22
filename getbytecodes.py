@@ -66,7 +66,7 @@ for bytecode in bytecodes:
 
     print "        case %s:" % bytecode[0]
     print "        {"
-    print "            func.m_output += \"// %s\\n\";" % bytecode[0]
+    print "            func.m_output += \"\t\t// %s\\n\";" % bytecode[0]
 
     data = bytecode[1]
     # if bytecode[0] == "asBC_FREE":
@@ -76,22 +76,31 @@ for bytecode in bytecodes:
     data = callscriptre.sub(r"""\1\3
 \2
 \3\4
-#if %d __RAW__
-            asDWORD * expected = l_bc;
-            int i = asBC_INTARG(byteCode); __RAW__
+#if %d                                                                                                                             __RAW__
+            int i = asBC_INTARG(byteCode);                                                                                         __RAW__
+            asIScriptFunction *asfunc = ((asCScriptEngine*)m_engine)->GetScriptFunction(i);                                        __RAW__
+            if (asfunc)                                                                                                            __RAW__
+            {                                                                                                                      __RAW__
+\3asDWORD * expected = l_bc;
 \8
-            func.m_output += "\3if (\6->jitFunction == " + GetAOTName(\6) + ")\\n"; __RAW__
-\3{
-            func.m_output += "\3    " + GetAOTName(\6) + "(registers, 0);\\n"; __RAW__
-\3}
+                func.m_output += "\3if (context->m_engine->GetScriptFunction(i)->jitFunction == " + GetAOTName(asfunc) + ")\\n";   __RAW__
+                func.m_output += "\3{\\n";                                                                                         __RAW__
+                func.m_output += "\3    " + GetAOTName(asfunc) + "(registers, 0);\\n";                                             __RAW__
+                func.m_output += "\3}\\n";                                                                                         __RAW__
 \7
 \3if (l_bc != expected)
 \3    __PLACEHOLDER2__
-#else __RAW__
+            }                                                                                                                      __RAW__
+            else                                                                                                                   __RAW__
+            {                                                                                                                      __RAW__
 \7
-\3    __PLACEHOLDER2__
-#endif __RAW__
-\3""" % (bytecode[0] == "asBC_CALL" or bytecode[0] == "asBC_CALLINTF"), data)
+                __PLACEHOLDER2__
+            }                                                                                                                      __RAW__
+#else                                                                                                                              __RAW__
+\7
+\3__PLACEHOLDER2__
+#endif                                                                                                                             __RAW__
+\3""" % (bytecode[0] == "asBC_CALL" or bytecode[0] == "asBC_CALLINTF" or bytecode[0] == "asBC_ALLOC"), data)
 
     lines = data.split("\n")
     for line in lines:
@@ -111,9 +120,9 @@ for bytecode in bytecodes:
 
         if "__RAW__" in line:
             line = line.replace("__RAW__", "")
-            idx = line.rfind("m_engine")
-            if idx != -1:
-                line = "%s%s" % (line[:idx].replace("m_engine", "context->m_engine"), line[idx:].replace("m_engine", "((asCScriptEngine*)m_engine)"))
+            # idx = line.rfind("m_engine")
+            # if idx != -1:
+            #     line = "%s%s" % (line[:idx].replace("m_engine", "context->m_engine"), line[idx:].replace("m_engine", "((asCScriptEngine*)m_engine)"))
             print line
             continue
 
@@ -141,8 +150,8 @@ for bytecode in bytecodes:
             if "PTR" in m.group(1):
                 continue
             if count == 0:
-                print "{"
-            print "            asDWORD aottmp%d = %s(byteCode%s);" % (count, m.group(1), m.group(2))
+                print "            {"
+            print "                asDWORD aottmp%d = %s(byteCode%s);" % (count, m.group(1), m.group(2))
             line = line.replace(m.string[m.start(1):m.end(2)+1], "%d")
             count += 1
 
@@ -153,9 +162,9 @@ for bytecode in bytecodes:
         if count == 0:
             print "            func.m_output += \"%s\\n\";" % line
         else:
-            print "            char aotbuf[BUFSIZE];"
-            print "            snprintf(aotbuf, BUFSIZE, \"%s\\n\", %s);" % (line, ",".join(["aottmp%d" % d for d in range(count)]))
-            print "            func.m_output += aotbuf;"
+            print "                char aotbuf[BUFSIZE];"
+            print "                snprintf(aotbuf, BUFSIZE, \"%s\\n\", %s);" % (line, ",".join(["aottmp%d" % d for d in range(count)]))
+            print "                func.m_output += aotbuf;"
         if jump:
             print "                char aotbuf2[BUFSIZE];"
             print "                snprintf(aotbuf2, BUFSIZE, \"                    goto bytecodeoffset_%d;\\n\", target);"
@@ -163,10 +172,10 @@ for bytecode in bytecodes:
             print "            func.m_output += \"                }\\n\";"
             print "            }"
         if count != 0:
-            print "}"
+            print "            }"
 
     if bytecode[0] == "asBC_RET":
-            print "            func.m_output += \"      goto \" + func.m_name + \"_end;\\n\";"
+            print "            func.m_output += \"\t\tgoto \" + func.m_name + \"_end;\\n\";"
     print "            break;"
     print "        }"
 
