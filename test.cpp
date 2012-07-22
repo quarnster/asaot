@@ -106,6 +106,29 @@ public:
     }
 };
 
+class CCodeStream : public asIBinaryStream
+{
+public:
+    CCodeStream()
+    {
+        m_fp = fopen("aot_generated_code.cpp", "w");
+    }
+    ~CCodeStream()
+    {
+        fclose(m_fp);
+    }
+    virtual void Read(void *ptr, asUINT size)
+    {
+        // Not really needed.
+    }
+    virtual void Write(const void *ptr, asUINT size)
+    {
+        fwrite(ptr, size, 1, m_fp);
+    }
+private:
+    FILE *m_fp;
+};
+
 void print(const std::string &str)
 {
     printf(str.c_str());
@@ -169,7 +192,8 @@ int main(int argc, char ** argv)
     }
 #if AOT_GENERATE_CODE
     AOTCompiler *c = (AOTCompiler*) jit;
-    c->DumpCode();
+    CCodeStream cs;
+    c->SaveCode(&cs);
 #endif
 
 

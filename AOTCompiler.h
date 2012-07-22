@@ -40,7 +40,7 @@ public:
     virtual int CompileFunction(asIScriptFunction *function, asJITFunction *output);
     virtual void ReleaseJITFunction(asJITFunction func);
 
-    void DumpCode();
+    void SaveCode(asIBinaryStream *stream);
 private:
     std::string GetAOTName(asIScriptFunction *func);
     asIScriptEngine *m_engine;

@@ -123,7 +123,7 @@ int AOTCompiler::CompileFunction(asIScriptFunction *function, asJITFunction *out
     return asERROR;
 }
 
-void AOTCompiler::DumpCode()
+void AOTCompiler::SaveCode(asIBinaryStream *stream)
 {
     std::string output;
     output += "#include <as_config.h>\n";
@@ -177,9 +177,7 @@ void AOTCompiler::DumpCode()
     }
     output += "};\n";
 
-    FILE *fp = fopen("aot_generated_code.cpp", "w");
-    fprintf(fp, output.c_str());
-    fclose(fp);
+    stream->Write(output.c_str(), output.length());
 }
 
 void AOTCompiler::ReleaseJITFunction(asJITFunction func)
