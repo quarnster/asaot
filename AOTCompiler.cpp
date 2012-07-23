@@ -127,7 +127,6 @@ void AOTCompiler::SaveCode(asIBinaryStream *stream)
     output += "#include <as_callfunc.h>\n";
     output += "#include <as_scriptobject.h>\n";
     output += "#include <as_texts.h>\n";
-    output += "#include <AOTLinker.h>\n";
     // TODO: is there a better way to handle this? What if it changes?
     output += "\nstatic const int CALLSTACK_FRAME_SIZE = 5;\n\n";
 
@@ -158,6 +157,9 @@ void AOTCompiler::SaveCode(asIBinaryStream *stream)
         output += "    registers->programPointer    = l_bc;\n";
         output += "    registers->stackPointer      = l_sp;\n";
         output += "    registers->stackFramePointer = l_fp;\n";
+        output += (*i).m_name;
+        output += "_end2:\n";
+        output += "    return;\n";
         output += "}\n";
     }
 

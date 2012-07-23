@@ -56,14 +56,6 @@ static const char *script =
 "    return ret;                              \n"
 "}                                            \n";
 
-extern "C"
-{
-int __aeabi_idiv(int a, int b)
-{
-    return a/b;
-}
-}
-
 #if _MSC_VER
 double GetTime()
 {

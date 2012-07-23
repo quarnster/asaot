@@ -34,7 +34,14 @@ data          = re.search(r"(asCContext::ExecuteNext.*?\n}\n)", data, re.DOTALL)
 commentre     = re.compile(r"^\s*//")
 jumpre        = re.compile(r"\s*l_bc\s*\+=[\s\d+]+asBC")
 argre         = re.compile(r"(\w+ARG\w*)\(l_bc([^)]*)\)")
-callscriptre  = re.compile(r"(m_regs\.stackFramePointer\s*=\s*l_fp;\s+?)(.*?)([ \t]*)(Call(InterfaceMethod|ScriptFunction)\((.*?)\);)(\s+.*?l_fp\s+=.*?m_regs\.stackFramePointer;)(.*?if.*?;)", re.DOTALL)
+callscriptre  = re.compile(r"(m_regs\.stackFramePointer\s*=\s*l_fp;\s+?)"\
+                            "(.*?)([ \t]*)(Call(InterfaceMethod|ScriptFunction))\((.*?)\);(.+?)"\
+                            "(l_\w+\s+=\s*m_regs\.\w+Pointer;)[\s\n\r]+"\
+                            "(l_\w+\s+=\s*m_regs\.\w+Pointer;)[\s\n\r]+"\
+                            "(l_\w+\s+=\s*m_regs\.\w+Pointer;)[\s\n\r]+"\
+                            "((.*?if.*?)(return;))", re.DOTALL)
+retre = re.compile(r"([\t ]+)(PopCallState\(\);).*?l_sp\s*\+=\s*(.*?);", re.DOTALL)
+
 
 bytecodes = re.findall(r"case\s+(a\w+):(.*?)(?=case\s+\w+:)", data, re.DOTALL)
 print "#include <angelscript.h>"
@@ -69,38 +76,39 @@ for bytecode in bytecodes:
     print "            func.m_output += \"\t\t// %s\\n\";" % bytecode[0]
 
     data = bytecode[1]
-    # if bytecode[0] == "asBC_FREE":
-    #     # These opcodes don't work at the moment so fall back to the interpreter
-    #     data = "            func.m_output += \"goto \" + func.m_name + \"_end;\\n\"; __RAW__"
-
     data = callscriptre.sub(r"""\1\3
 \2
-\3\4
+\3asCScriptFunction *__func = \6;
+\3\4(__func);
 #if %d                                                                                                                             __RAW__
             int i = asBC_INTARG(byteCode);                                                                                         __RAW__
-            asIScriptFunction *asfunc = ((asCScriptEngine*)m_engine)->GetScriptFunction(i);                                        __RAW__
+            asCScriptFunction *asfunc = ((asCScriptEngine*)m_engine)->GetScriptFunction(i);                                        __RAW__
             if (asfunc)                                                                                                            __RAW__
             {                                                                                                                      __RAW__
-\3asDWORD * expected = l_bc;
-\8
-                func.m_output += "\3if (context->m_engine->GetScriptFunction(i)->jitFunction == " + GetAOTName(asfunc) + ")\\n";   __RAW__
+                func.m_output += "\3asDWORD * expected = l_bc;\\n";                                                                __RAW__
+\12
+                func.m_output += "\3    __PLACEHOLDER2__\\n";                                                                      __RAW__
+                func.m_output += "\3if (__func->jitFunction == " + GetAOTName(asfunc) + ")\\n";                                    __RAW__
                 func.m_output += "\3{\\n";                                                                                         __RAW__
                 func.m_output += "\3    " + GetAOTName(asfunc) + "(registers, 0);\\n";                                             __RAW__
                 func.m_output += "\3}\\n";                                                                                         __RAW__
-\7
-\3if (l_bc != expected)
-\3    __PLACEHOLDER2__
+                func.m_output += "\3\8\\n";                                                                                        __RAW__
+                func.m_output += "\3\9\\n";                                                                                        __RAW__
+                func.m_output += "\3\10\\n";                                                                                       __RAW__
+                func.m_output += "\3if (l_bc != expected)\\n";                                                                     __RAW__
+                func.m_output += "\3    __PLACEHOLDER2__\\n";                                                                      __RAW__
             }                                                                                                                      __RAW__
             else                                                                                                                   __RAW__
-            {                                                                                                                      __RAW__
-\7
-                __PLACEHOLDER2__
-            }                                                                                                                      __RAW__
-#else                                                                                                                              __RAW__
-\7
-\3__PLACEHOLDER2__
 #endif                                                                                                                             __RAW__
+            {                                                                                                                      __RAW__
+                func.m_output += "\3__PLACEHOLDER2__\\n";                                                                          __RAW__
+            }                                                                                                                      __RAW__
 \3""" % (bytecode[0] == "asBC_CALL" or bytecode[0] == "asBC_CALLINTF" or bytecode[0] == "asBC_ALLOC"), data)
+
+    if bytecode[0] == "asBC_RET":
+        data = retre.sub(r"""\1\2
+\1registers->stackPointer += \3;
+            func.m_output += "\1__PLACEHOLDER2__\\n"; __RAW__""", data)
 
     lines = data.split("\n")
     for line in lines:
@@ -116,28 +124,22 @@ for bytecode in bytecodes:
         line = line.replace("CallLine", "context->CallLine")
         line = line.replace("SetInternal", "context->SetInternal")
         line = line.replace("PopCallState", "context->PopCallState")
+        line = line.replace("m_regs.", "registers->")
 
+        if "__PLACEHOLDER2__" in line:
+            line = line.replace("__PLACEHOLDER2__", "goto \" + func.m_name + \"_end2;")
 
         if "__RAW__" in line:
             line = line.replace("__RAW__", "")
-            # idx = line.rfind("m_engine")
-            # if idx != -1:
-            #     line = "%s%s" % (line[:idx].replace("m_engine", "context->m_engine"), line[idx:].replace("m_engine", "((asCScriptEngine*)m_engine)"))
             print line
             continue
-
-        line = line.replace("m_", "context->m_")
 
         if "return" in line:
             line =  """            func.m_output += "%sgoto " + func.m_name + "_end;\\n";""" % line.replace("return;", "")
             print line
             continue
 
-        if "__PLACEHOLDER2__" in line:
-            line = "            func.m_output += \"%sgoto \" + func.m_name + \"_end;\\n\";" % line.replace("__PLACEHOLDER2__", "")
-            print line
-            continue
-
+        line = line.replace("m_", "context->m_")
 
 
         if commentre.match(line) or len(line.strip()) == 0:
@@ -158,7 +160,7 @@ for bytecode in bytecodes:
         if jump:
             print "            {"
             print "                asDWORD target = asBC_INTARG(byteCode)+2 + offset;"
-            print "            func.m_output += \"                {\\n\";"
+            print "                func.m_output += \"                {\\n\";"
         if count == 0:
             print "            func.m_output += \"%s\\n\";" % line
         else:
@@ -168,14 +170,12 @@ for bytecode in bytecodes:
         if jump:
             print "                char aotbuf2[BUFSIZE];"
             print "                snprintf(aotbuf2, BUFSIZE, \"                    goto bytecodeoffset_%d;\\n\", target);"
-            print "            func.m_output += aotbuf2;"
-            print "            func.m_output += \"                }\\n\";"
+            print "                func.m_output += aotbuf2;"
+            print "                func.m_output += \"                }\\n\";"
             print "            }"
         if count != 0:
             print "            }"
 
-    if bytecode[0] == "asBC_RET":
-            print "            func.m_output += \"\t\tgoto \" + func.m_name + \"_end;\\n\";"
     print "            break;"
     print "        }"
 
