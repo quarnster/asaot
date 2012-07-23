@@ -25,6 +25,7 @@ import re
 import sys
 
 as_context_file = "%s/source/as_context.cpp" % sys.argv[1]
+angelscript_h = "%s/include/angelscript.h" % sys.argv[1]
 
 f = open(as_context_file)
 data = f.read()
@@ -41,6 +42,22 @@ callscriptre  = re.compile(r"(m_regs\.stackFramePointer\s*=\s*l_fp;\s+?)"\
                             "(l_\w+\s+=\s*m_regs\.\w+Pointer;)[\s\n\r]+"\
                             "((.*?if.*?)(return;))", re.DOTALL)
 retre = re.compile(r"([\t ]+)(PopCallState\(\);).*?l_sp\s*\+=\s*(.*?);", re.DOTALL)
+
+
+f = open(angelscript_h)
+data2 = f.read()
+f.close()
+
+lut = dict(re.findall(r"#define\s*(asBC_\w+ARG[^\(]*)\(.*?\)\s+.*?(\w+)", data2, re.DOTALL))
+def gettypename(macro):
+    return lut[macro]
+
+def gettypeprintf(macro):
+    if lut[macro] == "float":
+        return "%f"
+    elif lut[macro] == "asQWORD":
+        return "%ld"
+    return "%d"
 
 
 bytecodes = re.findall(r"case\s+(a\w+):(.*?)(?=case\s+\w+:)", data, re.DOTALL)
@@ -153,8 +170,8 @@ for bytecode in bytecodes:
                 continue
             if count == 0:
                 print "            {"
-            print "                asDWORD aottmp%d = %s(byteCode%s);" % (count, m.group(1), m.group(2))
-            line = line.replace(m.string[m.start(1):m.end(2)+1], "%d")
+            print "                %s aottmp%d = %s(byteCode%s);" % (gettypename(m.group(1)), count, m.group(1), m.group(2))
+            line = line.replace(m.string[m.start(1):m.end(2)+1], gettypeprintf(m.group(1)))
             count += 1
 
         if jump:
