@@ -120,7 +120,7 @@ for bytecode in bytecodes:
             {                                                                                                                      __RAW__
                 func.m_output += "\3__PLACEHOLDER2__\\n";                                                                          __RAW__
             }                                                                                                                      __RAW__
-\3""" % (bytecode[0] == "asBC_CALL" or bytecode[0] == "asBC_CALLINTF" or bytecode[0] == "asBC_ALLOC"), data)
+\3""" % (bytecode[0] == "asBC_CALL" or bytecode[0] == "asBC_ALLOC"), data)
 
     if bytecode[0] == "asBC_RET":
         data = retre.sub(r"""\1\2
