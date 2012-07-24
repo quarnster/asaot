@@ -36,7 +36,9 @@ void hack()
     func.m_output += "{\n";
     if( callConv == ICC_GENERIC_FUNC || callConv == ICC_GENERIC_METHOD )
     {
-        func.m_output += "l_sp += context->CallGeneric(id, objectPointer);\n";
+        char buf[128];
+        snprintf(buf, 128, "l_sp += context->CallGeneric(%d, objectPointer);\n", __id);
+        func.m_output += buf;
         goto goto_label;
     }
     popSize = sysFunc->paramSize;

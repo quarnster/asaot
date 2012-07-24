@@ -104,7 +104,7 @@ for bytecode in bytecodes:
 #if %d                                                                                                                             __RAW__
             int i = asBC_INTARG(byteCode);                                                                                         __RAW__
             asCScriptFunction *asfunc = ((asCScriptEngine*)m_engine)->GetScriptFunction(i);                                        __RAW__
-            if (asfunc)                                                                                                            __RAW__
+            if (asfunc && strcmp("factstub", asfunc->GetName()))                                                                   __RAW__
             {                                                                                                                      __RAW__
                 func.m_output += "\3asDWORD * expected = l_bc;\\n";                                                                __RAW__
 \12

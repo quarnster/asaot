@@ -38,24 +38,49 @@ AOTCompiler::~AOTCompiler()
 {
 }
 
+std::string add(const char *toadd)
+{
+    std::string ret;
+    if (toadd)
+    {
+        std::string tmp = toadd;
+        int off;
+        while ((off = tmp.find(':')) != -1)
+        {
+            tmp = tmp.replace(off, 1, 1, '_');
+        }
+        while ((off = tmp.find('.')) != -1)
+        {
+            tmp = tmp.replace(off, 1, 1, '_');
+        }
+        while ((off = tmp.find('/')) != -1)
+        {
+            tmp = tmp.replace(off, 1, 1, '_');
+        }
+        ret += tmp;
+    }
+    return ret;
+}
+
 std::string AOTCompiler::GetAOTName(asIScriptFunction *function)
 {
     std::string name;
     name += "___";
-    if (function->GetModuleName())
-        name += function->GetModuleName();
+    name += add(function->GetModuleName());
     name += "_";
-    if (function->GetNamespace())
-        name += function->GetNamespace();
+    name += add(function->GetNamespace());
     name += "_";
-    if (function->GetScriptSectionName())
-        name += function->GetScriptSectionName();
+    name += add(function->GetScriptSectionName());
     name += "_";
-    if (function->GetObjectName())
-        name += function->GetObjectName();
+    name += add(function->GetObjectName());
     name += "_";
     if (function->GetName())
-        name += function->GetName();
+    {
+        std::string fname = function->GetName();
+        if (fname[0] == '~')
+            fname = "__destructor__" + fname.substr(1);
+        name += fname;
+    }
     name += "_";
     return name;
 }
@@ -130,6 +155,12 @@ void AOTCompiler::SaveCode(asIBinaryStream *stream)
     // TODO: is there a better way to handle this? What if it changes?
     output += "\nstatic const int CALLSTACK_FRAME_SIZE = 5;\n\n";
 
+    for (std::vector<AOTFunction>::iterator i = m_functions.begin(); i < m_functions.end(); i++)
+    {
+        output += "void ";
+        output += (*i).m_name;
+        output += "(asSVMRegisters * registers, asPWORD jitArg);\n";
+    }
     for (std::vector<AOTFunction>::iterator i = m_functions.begin(); i < m_functions.end(); i++)
     {
         output += "void ";
