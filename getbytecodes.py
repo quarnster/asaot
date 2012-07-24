@@ -24,10 +24,10 @@ import os
 import re
 import sys
 
-as_context_file = "%s/source/as_context.cpp" % sys.argv[1]
+as_context_cpp = "%s/source/as_context.cpp" % sys.argv[1]
 angelscript_h = "%s/include/angelscript.h" % sys.argv[1]
 
-f = open(as_context_file)
+f = open(as_context_cpp)
 data = f.read()
 f.close()
 
@@ -41,8 +41,10 @@ callscriptre  = re.compile(r"(m_regs\.stackFramePointer\s*=\s*l_fp;\s+?)"\
                             "(l_\w+\s+=\s*m_regs\.\w+Pointer;)[\s\n\r]+"\
                             "(l_\w+\s+=\s*m_regs\.\w+Pointer;)[\s\n\r]+"\
                             "((.*?if.*?)(return;))", re.DOTALL)
-retre = re.compile(r"([\t ]+)(PopCallState\(\);).*?l_sp\s*\+=\s*(.*?);", re.DOTALL)
+callsystemre  = re.compile(r"l_sp\s*\+=\s*CallSystemFunction\(\s*(\w+)\s*,\s*(\w+)\s*,\s*(\w+)\s*\);")
 
+
+retre = re.compile(r"([\t ]+)(PopCallState\(\);).*?l_sp\s*\+=\s*(.*?);", re.DOTALL)
 
 f = open(angelscript_h)
 data2 = f.read()
@@ -66,12 +68,14 @@ print "#include <as_scriptengine.h>"
 print "#include <stdio.h>"
 print "#include <assert.h>"
 print "#include <math.h>"
+print "#include <as_callfunc.h>"
 print "#include \"AOTCompiler.h\""
 print ""
 print "#define ASSERT assert"
 print "#define asASSERT(x) "
 print "#define BUFSIZE 512 "
 print ""
+print "static unsigned int callsyscount = 0;"
 print "void AOTCompiler::ProcessByteCode(asDWORD *byteCode, asUINT offset, asEBCInstr op, AOTFunction &func)"
 print "{"
 print "    switch (op)"
@@ -122,6 +126,65 @@ for bytecode in bytecodes:
             }                                                                                                                      __RAW__
 \3""" % (bytecode[0] == "asBC_CALL" or bytecode[0] == "asBC_ALLOC"), data)
 
+    if bytecode[0] == "asBC_CALLSYS":
+        match = callsystemre.search(data)
+        idx = match.group(1)
+        if not re.search(r"asBC_\w+ARG", idx):
+            m2 = re.search(r"%s\s*=\s*(asBC_\w+ARG.*?);" % idx, data);
+            if not m2:
+                raise Exception("asBC_*ARG not found... %s\n%s" % (idx, data))
+            idx = m2.group(1)
+        idx = idx.replace("l_bc", "byteCode")
+
+        data = "{\nvoid *objectPointer = %s;\n%s}\n" % (match.group(3), data)
+        data = callsystemre.sub("""
+            char __tmp[128];                                         __RAW__
+            snprintf(__tmp, 128, "callsys_%%d_end", callsyscount++); __RAW__
+            std::string UNIQUE_CALLSYS_END_LABEL(__tmp);             __RAW__
+            #define __id %s                                          __RAW__
+            #define goto_label %s_end                                __RAW__
+            #include "my_callfunc.h"                                 __RAW__
+            #undef goto_label                                        __RAW__
+            #undef __id                                              __RAW__
+            """ % (idx, bytecode[0]), data)
+
+#         print """
+#             asCScriptFunction *__func = ((asCScriptEngine*) m_engine)->scriptFunctions[%s];
+#             asSSystemFunctionInterface *sysFunc = __func->sysFuncIntf;
+#             func.m_output += "/*\\n";
+#             func.m_output += __func->GetDeclaration();
+#             func.m_output += "\\n";
+#             char buf[BUFSIZE];
+#             if (sysFunc)
+#             {
+#                 snprintf(buf, BUFSIZE, "callconv: %%d\\n", sysFunc->callConv);
+#                 func.m_output += buf;
+#             }
+
+#             asIObjectType *ret = m_engine->GetObjectTypeById(__func->GetReturnTypeId());
+#             if (ret)
+#             {
+#                 snprintf(buf, BUFSIZE, "returntype: %%s::%%s, %%d\\n", ret->GetNamespace(), ret->GetName(), ret->GetSize());
+#                 func.m_output += buf;
+#             }
+
+#             for (int i = 0; i < __func->GetParamCount(); i++)
+#             {
+#                 asIObjectType *t = m_engine->GetObjectTypeById(__func->GetParamTypeId(i));
+#                 if (t)
+#                 {
+#                     snprintf(buf, BUFSIZE, "%%s::%%s, %%d\\n", t->GetNamespace(), t->GetName(), t->GetSize());
+#                     func.m_output += buf;
+#                 }
+#             }
+#             func.m_output += "*/\\n";
+#             if (sysFunc && sysFunc->callConv == ICC_CDECL_OBJLAST && !ret && __func->GetParamCount() == 0)
+#             {
+#                 snprintf(buf, BUFSIZE, "void (*tmpfunc)() = (void (*)())%%p;\\n", sysFunc->func);
+#                 func.m_output += buf;
+#             }
+# """ % (idx)
+
     if bytecode[0] == "asBC_RET":
         data = retre.sub(r"""\1\2
 \1registers->stackPointer += \3;
@@ -134,7 +197,7 @@ for bytecode in bytecodes:
             dobreak = True
             line = line.replace("break;", "")
 
-        line = line.replace("%", "%%")
+
         line = line.replace("this", "context")
         line = line.replace("CallSc", "context->CallSc")
         line = line.replace("CallInt", "context->CallInt")
@@ -150,6 +213,8 @@ for bytecode in bytecodes:
             line = line.replace("__RAW__", "")
             print line
             continue
+
+        line = line.replace("%", "%%")
 
         if "return" in line:
             line =  """            func.m_output += "%sgoto " + func.m_name + "_end;\\n";""" % line.replace("return;", "")
