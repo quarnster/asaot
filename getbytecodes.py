@@ -148,43 +148,6 @@ for bytecode in bytecodes:
             #undef __id                                              __RAW__
             """ % (idx, bytecode[0]), data)
 
-#         print """
-#             asCScriptFunction *__func = ((asCScriptEngine*) m_engine)->scriptFunctions[%s];
-#             asSSystemFunctionInterface *sysFunc = __func->sysFuncIntf;
-#             func.m_output += "/*\\n";
-#             func.m_output += __func->GetDeclaration();
-#             func.m_output += "\\n";
-#             char buf[BUFSIZE];
-#             if (sysFunc)
-#             {
-#                 snprintf(buf, BUFSIZE, "callconv: %%d\\n", sysFunc->callConv);
-#                 func.m_output += buf;
-#             }
-
-#             asIObjectType *ret = m_engine->GetObjectTypeById(__func->GetReturnTypeId());
-#             if (ret)
-#             {
-#                 snprintf(buf, BUFSIZE, "returntype: %%s::%%s, %%d\\n", ret->GetNamespace(), ret->GetName(), ret->GetSize());
-#                 func.m_output += buf;
-#             }
-
-#             for (int i = 0; i < __func->GetParamCount(); i++)
-#             {
-#                 asIObjectType *t = m_engine->GetObjectTypeById(__func->GetParamTypeId(i));
-#                 if (t)
-#                 {
-#                     snprintf(buf, BUFSIZE, "%%s::%%s, %%d\\n", t->GetNamespace(), t->GetName(), t->GetSize());
-#                     func.m_output += buf;
-#                 }
-#             }
-#             func.m_output += "*/\\n";
-#             if (sysFunc && sysFunc->callConv == ICC_CDECL_OBJLAST && !ret && __func->GetParamCount() == 0)
-#             {
-#                 snprintf(buf, BUFSIZE, "void (*tmpfunc)() = (void (*)())%%p;\\n", sysFunc->func);
-#                 func.m_output += buf;
-#             }
-# """ % (idx)
-
     if bytecode[0] == "asBC_RET":
         data = retre.sub(r"""\1\2
 \1registers->stackPointer += \3;

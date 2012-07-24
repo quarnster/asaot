@@ -109,8 +109,102 @@ void hack()
     }
 
     func.m_output += "context->m_callingSystemFunction = descr;\n";
-    func.m_output += "extern asQWORD CallSystemFunctionNative(asCContext *context, asCScriptFunction *descr, void *obj, asDWORD *args, void *retPointer, asQWORD &retQW2);\n";
-    func.m_output += "retQW = CallSystemFunctionNative(context, descr, obj, args, sysFunc->hostReturnInMemory ? retPointer : 0, retQW2);\n";
+
+    if (sysFunc->hostReturnInMemory)
+        callConv++;
+
+    switch (callConv)
+    {
+        case ICC_CDECL:
+        case ICC_CDECL_OBJFIRST:
+        case ICC_CDECL_OBJLAST:
+        {
+            snprintf(buf, 128, "// %s, %d\n", descr->GetName(), sysFunc->callConv);
+            asCDataType &retType = descr->returnType;
+            func.m_output += buf;
+            snprintf(buf, 128, "// ret: %d, %d, %d, %d\n", retType.IsObject(), retType.IsReference(), retType.IsPrimitive(), retType.GetSizeOnStackDWords());
+            func.m_output += buf;
+            std::string funcptr("typedef ");
+            std::string argsstr;
+            if (retType.IsObject())
+            {
+                funcptr += "void* ";
+            }
+            else
+            {
+                switch (retType.GetSizeOnStackDWords())
+                {
+                    case 0: funcptr += "void ";    break;
+                    case 1: funcptr += "asDWORD "; break;
+                    case 2: funcptr += "asQWORD "; break;
+                    default: assert(0);
+                }
+            }
+            func.m_output += "{\n";
+            funcptr += "(*funcptr)(";
+            int off = 0;
+            if (sysFunc->callConv == ICC_CDECL_OBJFIRST)
+            {
+                funcptr += "void*";
+                argsstr += "obj";
+                if (descr->parameterTypes.GetLength())
+                {
+                    funcptr += ", ";
+                    argsstr += ", ";
+                }
+            }
+            for( asUINT n = 0; n < descr->parameterTypes.GetLength(); n++ )
+            {
+                asCDataType &dt = descr->parameterTypes[n];
+                switch (dt.GetSizeOnStackDWords())
+                {
+                    case 1:
+                        funcptr += "asDWORD";
+                        snprintf(buf, 128, "args[%d]", off);
+                        argsstr += buf;
+                        break;
+                    case 2:
+                        funcptr += "asQWORD";
+                        snprintf(buf, 128, "*(asQWORD*)(&args[%d])", off);
+                        argsstr += buf;
+                        break;
+                    default: assert(0);
+                }
+                if (n < descr->parameterTypes.GetLength()-1)
+                {
+                    funcptr += ", ";
+                    argsstr += ", ";
+                }
+                off += dt.GetSizeOnStackDWords();
+            }
+            if (sysFunc->callConv == ICC_CDECL_OBJLAST)
+            {
+                if (descr->parameterTypes.GetLength())
+                {
+                    funcptr += ", ";
+                    argsstr += ", ";
+                }
+
+                funcptr += "void*";
+                argsstr += "obj";
+            }
+            funcptr += ");\n";
+
+            func.m_output += funcptr;
+            func.m_output += "funcptr a = (funcptr)sysFunc->func;\n";
+            if (retType.GetSizeOnStackDWords())
+                func.m_output += "retQW = (asQWORD) ";
+            func.m_output += " a(" + argsstr + ");\n";
+
+            func.m_output += "}\n";
+            break;
+        }
+        default:
+        {
+            func.m_output += "extern asQWORD CallSystemFunctionNative(asCContext *context, asCScriptFunction *descr, void *obj, asDWORD *args, void *retPointer, asQWORD &retQW2);\n";
+            func.m_output += "retQW = CallSystemFunctionNative(context, descr, obj, args, sysFunc->hostReturnInMemory ? retPointer : 0, retQW2);\n";
+        }
+    }
     func.m_output += "context->m_callingSystemFunction = 0;\n";
 
 #if defined(COMPLEX_OBJS_PASSED_BY_REF) || defined(AS_LARGE_OBJS_PASSED_BY_REF)
@@ -176,7 +270,7 @@ void hack()
 #if defined(AS_BIG_ENDIAN) && AS_PTR_SIZE == 1
             // Since we're treating the system function as if it is returning a QWORD we are
             // actually receiving the value in the high DWORD of retQW.
-            retQW >>= 32;
+            func.m_output += "retQW >>= 32;\n";
 #endif
 
             func.m_output += "registers->objectRegister = (void*)(asPWORD)retQW;\n";
@@ -200,7 +294,7 @@ void hack()
 #if defined(AS_BIG_ENDIAN) && AS_PTR_SIZE == 1
                     // Since we're treating the system function as if it is returning a QWORD we are
                     // actually receiving the value in the high DWORD of retQW.
-                    retQW >>= 32;
+                    func.m_output += "retQW >>= 32;\n";
 #endif
 
                     func.m_output += "*(asDWORD*)retPointer = (asDWORD)retQW;\n";
