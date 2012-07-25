@@ -34,6 +34,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>
+#include "common.h"
 
 void Assert(asIScriptGeneric *gen)
 {
@@ -216,6 +217,20 @@ static void cfunction32mix(int f1 , int f2 , int f3 , int f4 ,
 int main(int argc, char const *argv[])
 {
     asIScriptEngine *engine = asCreateScriptEngine(ANGELSCRIPT_VERSION);
+    engine->SetEngineProperty(asEP_BUILD_WITHOUT_LINE_CUES, 1);
+    engine->SetEngineProperty(asEP_INCLUDE_JIT_INSTRUCTIONS, 1);
+    engine->SetEngineProperty(asEP_OPTIMIZE_BYTECODE, 1);
+
+#define AOT_GENERATE_CODE 1
+#if !AOT_GENERATE_CODE
+    extern unsigned int AOTLinkerTableSize;
+    extern AOTLinkerEntry AOTLinkerTable[];
+    SimpleAOTLinker *linker = new SimpleAOTLinker(AOTLinkerTable, AOTLinkerTableSize);
+#else
+    SimpleAOTLinker *linker = new SimpleAOTLinker(NULL, 0);
+#endif
+    asIJITCompiler *jit = new AOTCompiler(linker);
+    engine->SetJITCompiler(jit);
     int r;
 
     float returnValue_f = 0.0f;
@@ -224,29 +239,29 @@ int main(int argc, char const *argv[])
     bool returned2 = true;
     asPoint p={0,0};
     asRect rc={{0,0},{0,0}};
-    r = engine->RegisterObjectType(    "point",                sizeof(asPoint), asOBJ_VALUE|asOBJ_POD|asOBJ_APP_CLASS|asOBJ_APP_CLASS_ALLFLOATS); assert(r >= 0);
-    r = engine->RegisterObjectType(    "rect",                 sizeof(asRect), asOBJ_VALUE|asOBJ_POD|asOBJ_APP_CLASS|asOBJ_APP_CLASS_ALLFLOATS);  assert(r >= 0);
-    r = engine->RegisterGlobalFunction("void assert(bool)",    asFUNCTION(Assert),        asCALL_GENERIC);                                        assert(r >= 0);
-    r = engine->RegisterGlobalFunction("bool cfunction_b()",   asFUNCTION(cfunction_b),   asCALL_CDECL);                                          assert(r >= 0);
-    r = engine->RegisterGlobalFunction("bool retfalse()",      asFUNCTION(retfalse),      asCALL_CDECL);                                          assert(r >= 0);
-    r = engine->RegisterGlobalFunction("bool retfalse2()",     asFUNCTION(retfalse_fake), asCALL_CDECL);                                          assert(r >= 0);
-    r = engine->RegisterGlobalFunction("int64 reti64()",       asFUNCTION(reti64),        asCALL_CDECL);                                          assert(r >= 0);
-    r = engine->RegisterGlobalFunction("float cfunction_f()",  asFUNCTION(cfunction_f),   asCALL_CDECL);                                          assert(r >= 0);
-    r = engine->RegisterGlobalFunction("double cfunction_d()", asFUNCTION(cfunction_d),   asCALL_CDECL);                                          assert(r >= 0);
-    r = engine->RegisterGlobalFunction("point Point()",        asFUNCTION(TestPoint),     asCALL_CDECL);                                          assert(r >= 0);
-    r = engine->RegisterGlobalFunction("rect Rect()",          asFUNCTION(TestRect),      asCALL_CDECL);                                          assert(r >= 0);
-    r = engine->RegisterGlobalProperty("double returnValue_d", &returnValue_d);                                                                   assert(r >= 0);
-    r = engine->RegisterGlobalProperty("float returnValue_f",  &returnValue_f);                                                                   assert(r >= 0);
-    r = engine->RegisterGlobalProperty("bool returned",        &returned);                                                                        assert(r >= 0);
-    r = engine->RegisterGlobalProperty("bool returned2",       &returned2);                                                                       assert(r >= 0);
-    r = engine->RegisterGlobalProperty("point p",              &p);                                                                               assert(r >= 0);
-    r = engine->RegisterGlobalProperty("rect r",               &rc);                                                                              assert(r >= 0);
-    r = engine->RegisterGlobalFunction("void cfunction1(int)", asFUNCTION(cfunction1),    asCALL_CDECL);                                          assert(r >= 0);
-    r = engine->RegisterGlobalFunction("void cfunction2(int,int)", asFUNCTION(cfunction2),    asCALL_CDECL);                                          assert(r >= 0);
-    r = engine->RegisterGlobalFunction("void cfunction4(int,int16,int8,int)", asFUNCTION(cfunction4),    asCALL_CDECL);                                          assert(r >= 0);
-    r = engine->RegisterGlobalFunction("void cfunction4f(float,float,double,float)", asFUNCTION(cfunction4f),    asCALL_CDECL);                                          assert(r >= 0);
-    r = engine->RegisterGlobalFunction("void cfunctionmix(int, float, double, int)", asFUNCTION(cfunctionmix), asCALL_CDECL); assert(r>= 0);
-    r = engine->RegisterGlobalFunction("void cfunctionmix2(int64, float, int8, int)", asFUNCTION(cfunctionmix2), asCALL_CDECL); assert(r>= 0);
+    r = engine->RegisterObjectType(    "point",                                       sizeof(asPoint), asOBJ_VALUE|asOBJ_POD|asOBJ_APP_CLASS|asOBJ_APP_CLASS_ALLFLOATS); assert(r >= 0);
+    r = engine->RegisterObjectType(    "rect",                                        sizeof(asRect), asOBJ_VALUE|asOBJ_POD|asOBJ_APP_CLASS|asOBJ_APP_CLASS_ALLFLOATS);  assert(r >= 0);
+    r = engine->RegisterGlobalFunction("void assert(bool)",                           asFUNCTION(Assert),        asCALL_GENERIC);                                        assert(r >= 0);
+    r = engine->RegisterGlobalFunction("bool cfunction_b()",                          asFUNCTION(cfunction_b),   asCALL_CDECL);                                          assert(r >= 0);
+    r = engine->RegisterGlobalFunction("bool retfalse()",                             asFUNCTION(retfalse),      asCALL_CDECL);                                          assert(r >= 0);
+    r = engine->RegisterGlobalFunction("bool retfalse2()",                            asFUNCTION(retfalse_fake), asCALL_CDECL);                                          assert(r >= 0);
+    r = engine->RegisterGlobalFunction("int64 reti64()",                              asFUNCTION(reti64),        asCALL_CDECL);                                          assert(r >= 0);
+    r = engine->RegisterGlobalFunction("float cfunction_f()",                         asFUNCTION(cfunction_f),   asCALL_CDECL);                                          assert(r >= 0);
+    r = engine->RegisterGlobalFunction("double cfunction_d()",                        asFUNCTION(cfunction_d),   asCALL_CDECL);                                          assert(r >= 0);
+    r = engine->RegisterGlobalFunction("point Point()",                               asFUNCTION(TestPoint),     asCALL_CDECL);                                          assert(r >= 0);
+    r = engine->RegisterGlobalFunction("rect Rect()",                                 asFUNCTION(TestRect),      asCALL_CDECL);                                          assert(r >= 0);
+    r = engine->RegisterGlobalProperty("double returnValue_d",                        &returnValue_d);                                                                   assert(r >= 0);
+    r = engine->RegisterGlobalProperty("float returnValue_f",                         &returnValue_f);                                                                   assert(r >= 0);
+    r = engine->RegisterGlobalProperty("bool returned",                               &returned);                                                                        assert(r >= 0);
+    r = engine->RegisterGlobalProperty("bool returned2",                              &returned2);                                                                       assert(r >= 0);
+    r = engine->RegisterGlobalProperty("point p",                                     &p);                                                                               assert(r >= 0);
+    r = engine->RegisterGlobalProperty("rect r",                                      &rc);                                                                              assert(r >= 0);
+    r = engine->RegisterGlobalFunction("void cfunction1(int)",                        asFUNCTION(cfunction1),    asCALL_CDECL);                                          assert(r >= 0);
+    r = engine->RegisterGlobalFunction("void cfunction2(int,int)",                    asFUNCTION(cfunction2),    asCALL_CDECL);                                          assert(r >= 0);
+    r = engine->RegisterGlobalFunction("void cfunction4(int,int16,int8,int)",         asFUNCTION(cfunction4),    asCALL_CDECL);                                          assert(r >= 0);
+    r = engine->RegisterGlobalFunction("void cfunction4f(float,float,double,float)",  asFUNCTION(cfunction4f),   asCALL_CDECL);                                          assert(r >= 0);
+    r = engine->RegisterGlobalFunction("void cfunctionmix(int, float, double, int)",  asFUNCTION(cfunctionmix),  asCALL_CDECL);                                          assert(r>= 0);
+    r = engine->RegisterGlobalFunction("void cfunctionmix2(int64, float, int8, int)", asFUNCTION(cfunctionmix2), asCALL_CDECL);                                          assert(r>= 0);
     r = engine->RegisterGlobalFunction("void cfunction32(int, int, int, int,"
                                                         "int, int, int, int,"
                                                         "int, int, int, int,"
@@ -387,6 +402,12 @@ int main(int argc, char const *argv[])
     assert(called32mix);
     assert(testVal32mix);
     printf("Tests were successful\n");
+
+#if AOT_GENERATE_CODE
+    AOTCompiler *c = (AOTCompiler*) jit;
+    CCodeStream cs("aot_generated_code2.cpp");
+    c->SaveCode(&cs);
+#endif
 
     ctx->Release();
     engine->Release();

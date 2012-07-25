@@ -30,7 +30,7 @@
             "-I${home}/code/3rdparty/angelscript/sdk/angelscript/include/",
             "-I${home}/code/3rdparty/angelscript/sdk/angelscript/source/",
             "-I${home}/code/3rdparty/angelscript/sdk/angelscript/add_on/",
-            "-I${folder:${project_path:AOTCompiler.h}}",
+            "-I${project_path:include}",
             "-ferror-limit=0"
         ]
     }

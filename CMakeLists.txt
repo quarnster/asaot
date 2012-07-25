@@ -13,6 +13,9 @@ add_custom_command(
 if(NOT EXISTS ${PROJECT_BINARY_DIR}/aot_generated_code.cpp)
     file(WRITE ${PROJECT_BINARY_DIR}/aot_generated_code.cpp "")
 endif()
+if(NOT EXISTS ${PROJECT_BINARY_DIR}/aot_generated_code2.cpp)
+    file(WRITE ${PROJECT_BINARY_DIR}/aot_generated_code2.cpp "")
+endif()
 
 link_directories(${ASPATH}/lib)
 include_directories(${ASPATH}/include ${ASPATH}/source ${ASPATH}/../add_on include)
@@ -24,5 +27,5 @@ add_executable(test tests/test.cpp ${PROJECT_BINARY_DIR}/aot_generated_code.cpp 
 target_link_libraries(test asaot Angelscript)
 
 
-add_executable(test2 tests/test2.cpp)
+add_executable(test2 tests/test2.cpp ${PROJECT_BINARY_DIR}/aot_generated_code2.cpp)
 target_link_libraries(test2 asaot Angelscript)
