@@ -15,14 +15,14 @@ if(NOT EXISTS ${PROJECT_BINARY_DIR}/aot_generated_code.cpp)
 endif()
 
 link_directories(${ASPATH}/lib)
-include_directories(${ASPATH}/include ${ASPATH}/source ${ASPATH}/../add_on .)
+include_directories(${ASPATH}/include ${ASPATH}/source ${ASPATH}/../add_on include)
 
-add_library(asaot AOTCompiler.cpp AOTFunction.cpp generated.cpp)
+add_library(asaot source/AOTCompiler.cpp source/AOTFunction.cpp generated.cpp)
 
 
-add_executable(test test.cpp ${PROJECT_BINARY_DIR}/aot_generated_code.cpp ${ASPATH}/../add_on/scriptstdstring/scriptstdstring.cpp)
+add_executable(test tests/test.cpp ${PROJECT_BINARY_DIR}/aot_generated_code.cpp ${ASPATH}/../add_on/scriptstdstring/scriptstdstring.cpp)
 target_link_libraries(test asaot Angelscript)
 
 
-add_executable(test2 test2.cpp)
+add_executable(test2 tests/test2.cpp)
 target_link_libraries(test2 asaot Angelscript)
