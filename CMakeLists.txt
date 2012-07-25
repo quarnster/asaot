@@ -23,3 +23,6 @@ add_library(asaot AOTCompiler.cpp AOTFunction.cpp generated.cpp)
 add_executable(test test.cpp ${PROJECT_BINARY_DIR}/aot_generated_code.cpp ${ASPATH}/../add_on/scriptstdstring/scriptstdstring.cpp)
 target_link_libraries(test asaot Angelscript)
 
+
+add_executable(test2 test2.cpp)
+target_link_libraries(test2 asaot Angelscript)
