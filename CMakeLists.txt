@@ -1,8 +1,13 @@
 cmake_minimum_required(VERSION 2.8)
 
-find_package(PythonInterp REQUIRED)
+find_package(PythonInterp)
 
 set(ASPATH "/Users/quarnster/code/3rdparty/angelscript/sdk/angelscript/" CACHE PATH "Directory containing angelscript")
+
+if(NOT PYTHON_EXECUTABLE)
+    message("Warning: Python executable not found. Going to try using the 'python' command anyway")
+    set(PYTHON_EXECUTABLE python)
+endif()
 
 add_custom_command(
     OUTPUT generated.cpp

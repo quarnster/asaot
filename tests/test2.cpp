@@ -404,8 +404,13 @@ int main(int argc, char const *argv[])
     printf("Tests were successful\n");
 
 #if AOT_GENERATE_CODE
+#ifdef ANDROID
+    #define EXTRA "/data/"
+#else
+    #define EXTRA
+#endif
     AOTCompiler *c = (AOTCompiler*) jit;
-    CCodeStream cs("aot_generated_code2.cpp");
+    CCodeStream cs(EXTRA "aot_generated_code2.cpp");
     c->SaveCode(&cs);
 #endif
 
