@@ -122,43 +122,39 @@ void hack()
             snprintf(buf, 128, "// %s, %d\n", descr->GetName(), sysFunc->callConv);
             asCDataType &retType = descr->returnType;
             func.m_output += buf;
-            snprintf(buf, 128, "// ret: %d, %d, %d, %d, %d\n", retType.IsObject(), retType.IsReference(), retType.IsPrimitive(), retType.GetSizeInMemoryDWords(), retType.GetSizeOnStackDWords());
+            snprintf(buf, 128, "// ret: %d, %d, %d, %d, %d, %d, %d\n", sysFunc->hostReturnFloat, retType.IsObject(), retType.IsReference(), retType.IsPrimitive(), retType.GetSizeInMemoryDWords(), retType.GetSizeOnStackDWords(), sysFunc->hostReturnSize);
             func.m_output += buf;
             std::string funcptr("typedef ");
             std::string argsstr;
-            if (retType.IsObject())
+            switch (retType.GetSizeInMemoryDWords())
             {
-                if (retType.GetSizeInMemoryDWords() > 2)
-                {
-
+                case 0: funcptr += "void ";    break;
+                case 1:
+                    if (retType.IsFloatType())
+                        funcptr += "float ";
+                    else
+                        funcptr += "asDWORD ";
+                    break;
+                case 2:
+                    if (retType.IsDoubleType())
+                        funcptr += "double ";
+                    else if (sysFunc->hostReturnFloat)
+                    {
+                        func.m_output += "typedef struct {float a; float b;} retstruct;\n";
+                        funcptr += "retstruct ";
+                    }
+                    else
+                        funcptr += "asQWORD ";
+                    break;
+                case 3:
+                case 4:
                     if (sysFunc->hostReturnFloat)
                         func.m_output += "typedef struct {struct {float a; float b;} a; struct {float a; float b;} b;} retstruct;\n";
                     else
                         func.m_output += "typedef retstruct {asQWORD a; asDWORD b;};";
                     funcptr += "retstruct ";
-                }
-                else
-                    funcptr += "void* ";
-            }
-            else
-            {
-                switch (retType.GetSizeInMemoryDWords())
-                {
-                    case 0: funcptr += "void ";    break;
-                    case 1:
-                        if (retType.IsFloatType())
-                            funcptr += "float ";
-                        else
-                            funcptr += "asDWORD ";
-                        break;
-                    case 2:
-                        if (retType.IsDoubleType())
-                            funcptr += "double ";
-                        else
-                            funcptr += "asQWORD ";
-                        break;
-                    default: assert(0);
-                }
+                    break;
+                default: assert(0);
             }
             func.m_output += "{\n";
             funcptr += "(*funcptr)(";
@@ -227,7 +223,15 @@ void hack()
             else if (retType.GetSizeInMemoryDWords() == 1)
                 func.m_output += "retQW = (asQWORD) " + call;
             else if (retType.GetSizeInMemoryDWords() == 2)
-                func.m_output += "retQW = (asQWORD) " + call;
+            {
+                if (sysFunc->hostReturnFloat)
+                {
+                    func.m_output += "retstruct ret = " + call;
+                    func.m_output += "retQW = *(asQWORD*) &ret;\n";
+                }
+                else
+                    func.m_output += "retQW = (asQWORD) " + call;
+            }
             else if (retType.GetSizeInMemoryDWords() > 2)
             {
                 func.m_output += "retstruct ret = " + call;

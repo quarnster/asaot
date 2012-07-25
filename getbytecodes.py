@@ -58,7 +58,9 @@ def gettypeprintf(macro):
     if lut[macro] == "float":
         return "%f"
     elif lut[macro] == "asQWORD":
-        return "%ld"
+        return "%llu"
+    elif lut[macro] == "asDWORD":
+        return "%lu"
     return "%d"
 
 
@@ -204,7 +206,7 @@ for bytecode in bytecodes:
 
         if jump:
             print "            {"
-            print "                asDWORD target = asBC_INTARG(byteCode)+2 + offset;"
+            print "                unsigned long target = asBC_INTARG(byteCode)+2 + offset;"
             print "                func.m_output += \"                {\\n\";"
         if count == 0:
             print "            func.m_output += \"%s\\n\";" % line
@@ -214,7 +216,7 @@ for bytecode in bytecodes:
             print "                func.m_output += aotbuf;"
         if jump:
             print "                char aotbuf2[BUFSIZE];"
-            print "                snprintf(aotbuf2, BUFSIZE, \"                    goto bytecodeoffset_%d;\\n\", target);"
+            print "                snprintf(aotbuf2, BUFSIZE, \"                    goto bytecodeoffset_%lu;\\n\", target);"
             print "                func.m_output += aotbuf2;"
             print "                func.m_output += \"                }\\n\";"
             print "            }"
