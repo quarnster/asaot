@@ -9,7 +9,11 @@
 #endif
 
 #ifndef STDCALL
-    #define STDCALL __stdcall
+    #ifdef __linux__
+        #define STDCALL __attribute__((stdcall))
+    #else
+        #define STDCALL __stdcall
+    #endif
 #endif
 
 

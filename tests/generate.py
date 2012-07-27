@@ -72,7 +72,7 @@ def register(calltype="cdecl"):
     elif calltype == "stdcall":
         decl = "asCALL_STDCALL"
 
-    calltype = "__stdcall" if calltype == "stdcall" else ""
+    calltype = "STDCALL" if calltype == "stdcall" else ""
 
     for test in tests:
         val = [getval(t) for t in test]
@@ -80,9 +80,12 @@ def register(calltype="cdecl"):
         cimplementation += """void %s func%d(%s)
     {
     %s
+    %s
         printf("%%s succeeded\\n", __FUNCTION__);
     }
-    """ % (calltype, count, ", ".join(["%s a%d" % (a,i) for i,a in enumerate(test)]), "\n".join(["\tassert(a%d == (%s)%s);" % (i,a,val[i]) for i,a in enumerate(test)]))
+    """ % (calltype, count, ", ".join(["%s a%d" % (a,i) for i,a in enumerate(test)]),
+        "assert(magic == 0x10203040);\n" if member else "",
+        "\n".join(["\tassert(a%d == (%s)%s);" % (i,a,val[i]) for i,a in enumerate(test)]))
         ascall += "        \"    %sfunc%d(%s);\\n\"\n" % ("test." if member else "", count, ", ".join([val[i] for i in range(len(test))]))
         count += 1
 
@@ -90,13 +93,25 @@ def register(calltype="cdecl"):
         val = getval(type)
         asname = datatypes[type].asname
         binding += "    r = engine->%s\"%s func%d()\", %sfunc%d), %s); assert(r>=0);\n" % (register, asname, count, macro, count, decl)
-        cimplementation += "%s %s func%d() { return (%s) %s; }\n" % (type, calltype, count, type, val)
+        cimplementation += """%s %s func%d()
+    {
+        %s
+        return (%s) %s;
+    }\n""" % (type, calltype, count, "assert(magic == 0x10203040);\n" if member else "", type, val)
         ascall += "        \"    assert(%sfunc%d() == %s(%s));\\n\"\n" % ("test." if member else "", count, asname, val)
         count += 1
 
 register("cdecl")
 register("stdcall")
-cimplementation += "class Test\n{\npublic:\n"
+cimplementation += """class Test
+{
+public:
+    unsigned int magic;
+    Test()
+    {
+        magic = 0x10203040;
+    }
+"""
 register("thiscall")
 cimplementation += "};\n"
 
