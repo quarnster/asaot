@@ -20,6 +20,10 @@ class Test:
     def __init__(self):
         pass
 tests = [
+    ["int"],
+    ["float"],
+    ["double"],
+    ["int64_t"],
     ("int "    * 4).split(),
     ("float "  * 4).split(),
     ("double " * 4).split(),
@@ -30,28 +34,39 @@ tests = [
     ("int64_t double char " * 10).split(),
 ]
 
+_valcount = 0
+def getval(type):
+    global _valcount
+    _valcount += 1
+    add = _valcount
+    val = "0x%s" % ("".join(["%02d" % (i+1) for i in range (datatypes[type].bytesize)]))
+
+    if type == "double" or type == "float":
+        val =  "%f" % (1337.0+add)
+    elif type == "bool":
+        val = "true"
+    else:
+        val = "0x%x" % (int(val,16)+add)
+    return val
+
 count = 0
 cimplementation = ""
 binding = ""
 ascall = ""
 for test in tests:
+    val = [getval(t) for t in test]
     binding += "    r = engine->RegisterGlobalFunction(\"void func%d(%s)\", asFUNCTION(func%d), asCALL_CDECL); assert(r>=0);\n" % (count, ", ".join([datatypes[a].asname for a in test]), count)
     cimplementation += """void func%d(%s)
 {
 %s
     printf("%%s succeeded\\n", __FUNCTION__);
 }
-""" % (count, ", ".join(["%s a%d" % (a,i) for i,a in enumerate(test)]), "\n".join(["\tassert(a%d == (%s)%d);" % (i,a,i) for i,a in enumerate(test)]))
-    ascall += "        \"    func%d(%s);\\n\"\n" % (count, ", ".join("%d" % a for a in range(len(test))))
+""" % (count, ", ".join(["%s a%d" % (a,i) for i,a in enumerate(test)]), "\n".join(["\tassert(a%d == (%s)%s);" % (i,a,val[i]) for i,a in enumerate(test)]))
+    ascall += "        \"    func%d(%s);\\n\"\n" % (count, ", ".join([val[i] for i in range(len(test))]))
     count += 1
 
 for type in datatypes:
-    val = "0x%s" % ("".join(["%02d" % (i+1) for i in range (datatypes[type].bytesize)]))
-
-    if type == "double" or type == "float":
-        val =  "1337.0"
-    elif type == "bool":
-        val = "true"
+    val = getval(type)
     asname = datatypes[type].asname
     binding += "    r = engine->RegisterGlobalFunction(\"%s func%d()\", asFUNCTION(func%d), asCALL_CDECL); assert(r>=0);\n" % (asname, count, count)
     cimplementation += "%s func%d() { return (%s) %s; } " % (type, count, type, val)
