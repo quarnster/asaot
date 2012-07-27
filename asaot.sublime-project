@@ -23,8 +23,11 @@
     ],
     "settings":
     {
-        "sublimegdb_commandline": "gdb --interpreter=mi ./test2",
-        "sublimegdb_workingdir": "${project_path:build}",
+        "sublimegdb_commandline": "${home}/android/arm-linux-androideabi-gdb --interpreter=mi -x cmd.txt",
+        "sublimegdb_workingdir": "${project_path:bin}",
+        "sublimegdb_exec_cmd": "-exec-continue",
+        //"sublimegdb_commandline": "gdb --interpreter=mi ./test2",
+        //"sublimegdb_workingdir": "${project_path:build-android}",
         "sublimeclang_options":
         [
             "-I${home}/code/3rdparty/angelscript/sdk/angelscript/include/",

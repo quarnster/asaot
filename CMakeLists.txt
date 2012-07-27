@@ -40,7 +40,7 @@ target_link_libraries(test asaot Angelscript)
 add_executable(test2 test2.cpp ${PROJECT_BINARY_DIR}/aot_generated_code2.cpp)
 target_link_libraries(test2 asaot Angelscript)
 
-if(${CMAKE_SYSTEM_NAME} MATCHES "Linux")
+if(${CMAKE_SYSTEM_NAME} MATCHES "Linux" AND NOT ANDROID)
     target_link_libraries(test2 pthread)
     target_link_libraries(test pthread)
 endif()
