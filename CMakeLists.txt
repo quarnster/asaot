@@ -15,6 +15,12 @@ add_custom_command(
     DEPENDS ${PROJECT_SOURCE_DIR}/getbytecodes.py
      )
 
+add_custom_command(
+    OUTPUT test2.cpp
+    COMMAND ${PYTHON_EXECUTABLE} ${PROJECT_SOURCE_DIR}/tests/generate.py ${ASPATH} > test2.cpp
+    DEPENDS ${PROJECT_SOURCE_DIR}/tests/generate.py
+     )
+
 if(NOT EXISTS ${PROJECT_BINARY_DIR}/aot_generated_code.cpp)
     file(WRITE ${PROJECT_BINARY_DIR}/aot_generated_code.cpp "")
 endif()
@@ -32,5 +38,5 @@ add_executable(test tests/test.cpp ${PROJECT_BINARY_DIR}/aot_generated_code.cpp 
 target_link_libraries(test asaot Angelscript)
 
 
-add_executable(test2 tests/test2.cpp ${PROJECT_BINARY_DIR}/aot_generated_code2.cpp)
+add_executable(test2 test2.cpp ${PROJECT_BINARY_DIR}/aot_generated_code2.cpp)
 target_link_libraries(test2 asaot Angelscript)
