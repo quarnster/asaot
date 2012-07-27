@@ -35,24 +35,27 @@ cimplementation = ""
 binding = ""
 ascall = ""
 for test in tests:
-    binding += "\tr = engine->RegisterGlobalFunction(\"void func%d(%s)\", asFUNCTION(func%d), asCALL_CDECL); assert(r>=0);\n" % (count, ", ".join([datatypes[a].asname for a in test]), count)
+    binding += "    r = engine->RegisterGlobalFunction(\"void func%d(%s)\", asFUNCTION(func%d), asCALL_CDECL); assert(r>=0);\n" % (count, ", ".join([datatypes[a].asname for a in test]), count)
     cimplementation += """void func%d(%s)
 {
 %s
     printf("%%s succeeded\\n", __FUNCTION__);
 }
 """ % (count, ", ".join(["%s a%d" % (a,i) for i,a in enumerate(test)]), "\n".join(["\tassert(a%d == (%s)%d);" % (i,a,i) for i,a in enumerate(test)]))
-    ascall += "\t\"\tfunc%d(%s);\\n\"\n" % (count, ", ".join("%d" % a for a in range(len(test))))
+    ascall += "        \"    func%d(%s);\\n\"\n" % (count, ", ".join("%d" % a for a in range(len(test))))
     count += 1
 
 for type in datatypes:
-    val = "1337" if type != "char" else "133"
-    if type == "bool":
+    val = "0x%s" % ("".join(["%02d" % (i+1) for i in range (datatypes[type].bytesize)]))
+
+    if type == "double" or type == "float":
+        val =  "1337.0"
+    elif type == "bool":
         val = "true"
     asname = datatypes[type].asname
-    binding += "\tr = engine->RegisterGlobalFunction(\"%s func%d()\", asFUNCTION(func%d), asCALL_CDECL); assert(r>=0);\n" % (asname, count, count)
+    binding += "    r = engine->RegisterGlobalFunction(\"%s func%d()\", asFUNCTION(func%d), asCALL_CDECL); assert(r>=0);\n" % (asname, count, count)
     cimplementation += "%s func%d() { return (%s) %s; } " % (type, count, type, val)
-    ascall += "\t\"\tassert(func%d() == %s(%s));\\n\"\n" % (count, asname, val)
+    ascall += "        \"    assert(func%d() == %s(%s));\\n\"\n" % (count, asname, val)
     count += 1
 
 
@@ -116,7 +119,8 @@ int main(int argc, char **argv)
 
     const char *script =
         "void main()\\n"
-        "{\\n"%s\t"}\\n";
+        "{\\n"
+%s        "}\\n";
     asIScriptModule *mod = engine->GetModule(0, asGM_ALWAYS_CREATE);
     mod->AddScriptSection("Test", script, strlen(script), 0);
     mod->Build();
