@@ -158,9 +158,12 @@ void hack()
                 default: assert(0);
             }
             func.m_output += "{\n";
-            funcptr += "(*funcptr)(";
+            if (callConv == ICC_THISCALL)
+                funcptr += "(__thiscall *funcptr)(";
+            else
+                funcptr += "(*funcptr)(";
             int off = 0;
-            if (sysFunc->callConv == ICC_CDECL_OBJFIRST)
+            if (callConv == ICC_CDECL_OBJFIRST || callConv == ICC_THISCALL)
             {
                 funcptr += "void*";
                 argsstr += "obj";
@@ -214,25 +217,11 @@ void hack()
             }
             funcptr += ");\n";
 
-            func.m_output += funcptr;
+            
             std::string call;
-            if (callConv == ICC_THISCALL)
-            {
-                func.m_output += "class __tmpclass\n"
-                                 "{\n"
-                                 "public:\n"
-                                 "    __tmpclass(funcptr p) : a(p) {}\n"
-                                 "    funcptr a;\n"
-                                 "};\n"
-                                 "__tmpclass tmpclass((funcptr)sysFunc->func);\n"
-                                 ;
-                call = "tmpclass.a(" + argsstr + ");\n";
-            }
-            else
-            {
-                func.m_output += "funcptr a = (funcptr)sysFunc->func;\n";
-                call = "a(" + argsstr + ");\n";
-            }
+            func.m_output += funcptr;
+            func.m_output += "funcptr a = (funcptr)sysFunc->func;\n";
+            call = "a(" + argsstr + ");\n";
             if (retType.IsFloatType() || (retType.IsDoubleType() && retType.GetSizeInMemoryDWords() == 1))
                 func.m_output += "float ret = " + call + "retQW = *(asDWORD*) &ret;\n";
             else if (retType.IsDoubleType())
