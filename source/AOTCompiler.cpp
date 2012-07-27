@@ -28,6 +28,7 @@
 #endif
 
 #include "AOTCompiler.h"
+#include <stdio.h>
 
 AOTCompiler::AOTCompiler(AOTLinker *linker)
 : m_linker(linker)
