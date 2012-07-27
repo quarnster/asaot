@@ -54,7 +54,7 @@ cimplementation = ""
 binding = ""
 ascall = ""
 
-def register(member=False):
+def register(calltype="cdecl"):
     global binding
     global cimplementation
     global ascall
@@ -62,21 +62,27 @@ def register(member=False):
     register = "RegisterGlobalFunction("
     macro = "asFUNCTION("
     decl = "asCALL_CDECL"
+    member = False
 
-    if member:
+    if calltype == "thiscall":
         register = "RegisterObjectMethod(\"Test\", "
         macro = "asMETHOD(Test, "
         decl = "asCALL_THISCALL"
+        member = True
+    elif calltype == "stdcall":
+        decl = "asCALL_STDCALL"
+
+    calltype = "__stdcall" if calltype == "stdcall" else ""
 
     for test in tests:
         val = [getval(t) for t in test]
         binding += "    r = engine->%s\"void func%d(%s)\", %sfunc%d), %s); assert(r>=0);\n" % (register, count, ", ".join([datatypes[a].asname for a in test]), macro, count, decl)
-        cimplementation += """void func%d(%s)
+        cimplementation += """void %s func%d(%s)
     {
     %s
         printf("%%s succeeded\\n", __FUNCTION__);
     }
-    """ % (count, ", ".join(["%s a%d" % (a,i) for i,a in enumerate(test)]), "\n".join(["\tassert(a%d == (%s)%s);" % (i,a,val[i]) for i,a in enumerate(test)]))
+    """ % (calltype, count, ", ".join(["%s a%d" % (a,i) for i,a in enumerate(test)]), "\n".join(["\tassert(a%d == (%s)%s);" % (i,a,val[i]) for i,a in enumerate(test)]))
         ascall += "        \"    %sfunc%d(%s);\\n\"\n" % ("test." if member else "", count, ", ".join([val[i] for i in range(len(test))]))
         count += 1
 
@@ -84,13 +90,14 @@ def register(member=False):
         val = getval(type)
         asname = datatypes[type].asname
         binding += "    r = engine->%s\"%s func%d()\", %sfunc%d), %s); assert(r>=0);\n" % (register, asname, count, macro, count, decl)
-        cimplementation += "%s func%d() { return (%s) %s; }\n" % (type, count, type, val)
+        cimplementation += "%s %s func%d() { return (%s) %s; }\n" % (type, calltype, count, type, val)
         ascall += "        \"    assert(%sfunc%d() == %s(%s));\\n\"\n" % ("test." if member else "", count, asname, val)
         count += 1
 
-register(False)
+register("cdecl")
+register("stdcall")
 cimplementation += "class Test\n{\npublic:\n"
-register(True)
+register("thiscall")
 cimplementation += "};\n"
 
 
@@ -168,7 +175,7 @@ int main(int argc, char **argv)
     r = ctx->Execute();
     assert(r == asEXECUTION_FINISHED);
 
-    printf("all is good\\n");
+    printf("all is good %%d\\n", AOT_GENERATE_CODE);
 
 #if AOT_GENERATE_CODE
 #ifdef ANDROID

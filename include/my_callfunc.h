@@ -119,6 +119,7 @@ void hack()
         case ICC_CDECL_OBJFIRST:
         case ICC_CDECL_OBJLAST:
         case ICC_THISCALL:
+        case ICC_STDCALL:
         {
             snprintf(buf, 128, "// %s, %d\n", descr->GetName(), sysFunc->callConv);
             asCDataType &retType = descr->returnType;
@@ -160,6 +161,8 @@ void hack()
             func.m_output += "{\n";
             if (callConv == ICC_THISCALL)
                 funcptr += "(__thiscall *funcptr)(";
+            else if (callConv == ICC_STDCALL)
+                funcptr += "(__stdcall *funcptr)(";
             else
                 funcptr += "(*funcptr)(";
             int off = 0;

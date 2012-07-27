@@ -16,7 +16,6 @@ def dotest(config=""):
         make = "nmake test2 && test2"
 
     os.system("cmake %s .. && cmake -E remove -f test2*" % config)
-    replace(0, 1)
     os.system(make)
     replace(1, 0)
     os.system(make)
@@ -28,4 +27,5 @@ if platform.system() == "Darwin":
     os.system("rm -rf *")
     dotest("-DCMAKE_OSX_ARCHITECTURES=i386")
 else:
+    os.system("cmake -E remove_directory .")
     dotest("-G \"NMake Makefiles\" -DASPATH=\"../../3rdparty/angelscript/sdk/angelscript\"")
