@@ -118,6 +118,7 @@ void hack()
         case ICC_CDECL:
         case ICC_CDECL_OBJFIRST:
         case ICC_CDECL_OBJLAST:
+        case ICC_THISCALL:
         {
             snprintf(buf, 128, "// %s, %d\n", descr->GetName(), sysFunc->callConv);
             asCDataType &retType = descr->returnType;
@@ -214,8 +215,24 @@ void hack()
             funcptr += ");\n";
 
             func.m_output += funcptr;
-            func.m_output += "funcptr a = (funcptr)sysFunc->func;\n";
-            std::string call("a(" + argsstr + ");\n");
+            std::string call;
+            if (callConv == ICC_THISCALL)
+            {
+                func.m_output += "class __tmpclass\n"
+                                 "{\n"
+                                 "public:\n"
+                                 "    __tmpclass(funcptr p) : a(p) {}\n"
+                                 "    funcptr a;\n"
+                                 "};\n"
+                                 "__tmpclass tmpclass((funcptr)sysFunc->func);\n"
+                                 ;
+                call = "tmpclass.a(" + argsstr + ");\n";
+            }
+            else
+            {
+                func.m_output += "funcptr a = (funcptr)sysFunc->func;\n";
+                call = "a(" + argsstr + ");\n";
+            }
             if (retType.IsFloatType() || (retType.IsDoubleType() && retType.GetSizeInMemoryDWords() == 1))
                 func.m_output += "float ret = " + call + "retQW = *(asDWORD*) &ret;\n";
             else if (retType.IsDoubleType())

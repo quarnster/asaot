@@ -53,25 +53,45 @@ count = 0
 cimplementation = ""
 binding = ""
 ascall = ""
-for test in tests:
-    val = [getval(t) for t in test]
-    binding += "    r = engine->RegisterGlobalFunction(\"void func%d(%s)\", asFUNCTION(func%d), asCALL_CDECL); assert(r>=0);\n" % (count, ", ".join([datatypes[a].asname for a in test]), count)
-    cimplementation += """void func%d(%s)
-{
-%s
-    printf("%%s succeeded\\n", __FUNCTION__);
-}
-""" % (count, ", ".join(["%s a%d" % (a,i) for i,a in enumerate(test)]), "\n".join(["\tassert(a%d == (%s)%s);" % (i,a,val[i]) for i,a in enumerate(test)]))
-    ascall += "        \"    func%d(%s);\\n\"\n" % (count, ", ".join([val[i] for i in range(len(test))]))
-    count += 1
 
-for type in datatypes:
-    val = getval(type)
-    asname = datatypes[type].asname
-    binding += "    r = engine->RegisterGlobalFunction(\"%s func%d()\", asFUNCTION(func%d), asCALL_CDECL); assert(r>=0);\n" % (asname, count, count)
-    cimplementation += "%s func%d() { return (%s) %s; } " % (type, count, type, val)
-    ascall += "        \"    assert(func%d() == %s(%s));\\n\"\n" % (count, asname, val)
-    count += 1
+def register(member=False):
+    global binding
+    global cimplementation
+    global ascall
+    global count
+    register = "RegisterGlobalFunction("
+    macro = "asFUNCTION("
+    decl = "asCALL_CDECL"
+
+    if member:
+        register = "RegisterObjectMethod(\"Test\", "
+        macro = "asMETHOD(Test, "
+        decl = "asCALL_THISCALL"
+
+    for test in tests:
+        val = [getval(t) for t in test]
+        binding += "    r = engine->%s\"void func%d(%s)\", %sfunc%d), %s); assert(r>=0);\n" % (register, count, ", ".join([datatypes[a].asname for a in test]), macro, count, decl)
+        cimplementation += """void func%d(%s)
+    {
+    %s
+        printf("%%s succeeded\\n", __FUNCTION__);
+    }
+    """ % (count, ", ".join(["%s a%d" % (a,i) for i,a in enumerate(test)]), "\n".join(["\tassert(a%d == (%s)%s);" % (i,a,val[i]) for i,a in enumerate(test)]))
+        ascall += "        \"    %sfunc%d(%s);\\n\"\n" % ("test." if member else "", count, ", ".join([val[i] for i in range(len(test))]))
+        count += 1
+
+    for type in datatypes:
+        val = getval(type)
+        asname = datatypes[type].asname
+        binding += "    r = engine->%s\"%s func%d()\", %sfunc%d), %s); assert(r>=0);\n" % (register, asname, count, macro, count, decl)
+        cimplementation += "%s func%d() { return (%s) %s; }\n" % (type, count, type, val)
+        ascall += "        \"    assert(%sfunc%d() == %s(%s));\\n\"\n" % ("test." if member else "", count, asname, val)
+        count += 1
+
+register(False)
+cimplementation += "class Test\n{\npublic:\n"
+register(True)
+cimplementation += "};\n"
 
 
 print """
@@ -127,10 +147,13 @@ int main(int argc, char **argv)
 #endif
     asIJITCompiler *jit = new AOTCompiler(linker);
     engine->SetJITCompiler(jit);
+    Test test;
 
     int r;
     r = engine->RegisterGlobalFunction("void assert(bool)", asFUNCTION(Assert), asCALL_GENERIC); assert(r>=0);
+    r = engine->RegisterObjectType("Test", 0, asOBJ_REF | asOBJ_NOHANDLE); assert( r >= 0 );
     %s
+    r = engine->RegisterGlobalProperty("Test test", &test); assert(r >= 0);
 
     const char *script =
         "void main()\\n"
