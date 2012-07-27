@@ -1,6 +1,7 @@
 import re
 import os
 import platform
+import time
 
 def replace(a, b):
     f = open("test2.cpp")
@@ -17,6 +18,8 @@ def dotest(config=""):
 
     os.system("cmake %s .. && cmake -E remove -f test2*" % config)
     os.system(make)
+    time.sleep(2) # hack just to give the files a different modification timestamp
+    os.utime("aot_generated_code2.cpp", None)
     replace(1, 0)
     os.system(make)
 

@@ -160,9 +160,9 @@ void hack()
             }
             func.m_output += "{\n";
             if (callConv == ICC_THISCALL)
-                funcptr += "(__thiscall *funcptr)(";
+                funcptr += "(THISCALL *funcptr)(";
             else if (callConv == ICC_STDCALL)
-                funcptr += "(__stdcall *funcptr)(";
+                funcptr += "(STDCALL *funcptr)(";
             else
                 funcptr += "(*funcptr)(";
             int off = 0;
@@ -220,7 +220,7 @@ void hack()
             }
             funcptr += ");\n";
 
-            
+
             std::string call;
             func.m_output += funcptr;
             func.m_output += "funcptr a = (funcptr)sysFunc->func;\n";

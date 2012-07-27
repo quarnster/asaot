@@ -27,10 +27,7 @@
 #include <vector>
 #include "AOTFunction.h"
 #include "AOTLinker.h"
-
-#if _MSC_VER
-   #define snprintf _snprintf_s
-#endif
+#include "aot_config.h"
 
 class AOTCompiler : public asIJITCompiler
 {

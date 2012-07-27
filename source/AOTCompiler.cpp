@@ -153,6 +153,7 @@ void AOTCompiler::SaveCode(asIBinaryStream *stream)
     output += "#include <as_callfunc.h>\n";
     output += "#include <as_scriptobject.h>\n";
     output += "#include <as_texts.h>\n";
+    output += "#include <aot_config.h>\n";
     // TODO: is there a better way to handle this? What if it changes?
     output += "\nstatic const int CALLSTACK_FRAME_SIZE = 5;\n\n";
 
