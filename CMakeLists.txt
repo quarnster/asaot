@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 2.8)
 
+project(asaot)
+
 find_package(PythonInterp)
 
 set(ASPATH "${PROJECT_SOURCE_DIR}/../3rdparty/angelscript/sdk/angelscript/" CACHE PATH "Directory containing angelscript")
