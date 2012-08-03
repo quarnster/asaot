@@ -128,27 +128,27 @@ for bytecode in bytecodes:
             }                                                                                                                      __RAW__
 \3""" % (bytecode[0] == "asBC_CALL" or bytecode[0] == "asBC_ALLOC"), data)
 
-    # if bytecode[0] == "asBC_CALLSYS":
-    #     match = callsystemre.search(data)
-    #     idx = match.group(1)
-    #     if not re.search(r"asBC_\w+ARG", idx):
-    #         m2 = re.search(r"%s\s*=\s*(asBC_\w+ARG.*?);" % idx, data);
-    #         if not m2:
-    #             raise Exception("asBC_*ARG not found... %s\n%s" % (idx, data))
-    #         idx = m2.group(1)
-    #     idx = idx.replace("l_bc", "byteCode")
+    if bytecode[0] == "asBC_CALLSYS":
+        match = callsystemre.search(data)
+        idx = match.group(1)
+        if not re.search(r"asBC_\w+ARG", idx):
+            m2 = re.search(r"%s\s*=\s*(asBC_\w+ARG.*?);" % idx, data);
+            if not m2:
+                raise Exception("asBC_*ARG not found... %s\n%s" % (idx, data))
+            idx = m2.group(1)
+        idx = idx.replace("l_bc", "byteCode")
 
-    #     data = "{\nvoid *objectPointer = %s;\n%s}\n" % (match.group(3), data)
-    #     data = callsystemre.sub("""
-    #         char __tmp[128];                                         __RAW__
-    #         snprintf(__tmp, 128, "callsys_%%d_end", callsyscount++); __RAW__
-    #         std::string UNIQUE_CALLSYS_END_LABEL(__tmp);             __RAW__
-    #         #define __id %s                                          __RAW__
-    #         #define goto_label %s_end                                __RAW__
-    #         #include "my_callfunc.h"                                 __RAW__
-    #         #undef goto_label                                        __RAW__
-    #         #undef __id                                              __RAW__
-    #         """ % (idx, bytecode[0]), data)
+        data = "{\nvoid *objectPointer = %s;\n%s}\n" % (match.group(3), data)
+        data = callsystemre.sub("""
+            char __tmp[128];                                         __RAW__
+            snprintf(__tmp, 128, "callsys_%%d_end", callsyscount++); __RAW__
+            std::string UNIQUE_CALLSYS_END_LABEL(__tmp);             __RAW__
+            #define __id %s                                          __RAW__
+            #define goto_label %s_end                                __RAW__
+            #include "my_callfunc.h"                                 __RAW__
+            #undef goto_label                                        __RAW__
+            #undef __id                                              __RAW__
+            """ % (idx, bytecode[0]), data)
 
     if bytecode[0] == "asBC_RET":
         data = retre.sub(r"""\1\2

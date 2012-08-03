@@ -115,6 +115,7 @@ void hack()
 
     switch (callConv)
     {
+#if AOT_ENABLE_QUICKCALL
         case ICC_CDECL:
         case ICC_CDECL_OBJFIRST:
         case ICC_CDECL_OBJLAST:
@@ -158,6 +159,8 @@ void hack()
                     break;
                 default: assert(0);
             }
+            if (retType.IsReference())
+                funcptr += "&";
             func.m_output += "{\n";
             if (callConv == ICC_THISCALL)
                 funcptr += "(THISCALL *funcptr)(";
@@ -179,7 +182,7 @@ void hack()
             for( asUINT n = 0; n < descr->parameterTypes.GetLength(); n++ )
             {
                 asCDataType &dt = descr->parameterTypes[n];
-                const char *type = "asDWORD";
+                std::string type = "asDWORD";
                 switch (dt.GetSizeOnStackDWords())
                 {
                     case 1:
@@ -197,7 +200,13 @@ void hack()
                     default: assert(0);
                 }
                 funcptr += type;
-                snprintf(buf, 128, "*(%s*)(&args[%d])", type, off);
+                if (dt.IsReference())
+                {
+                    funcptr += "&";
+                    type += "*";
+                    argsstr += "*";
+                }
+                snprintf(buf, 128, "*(%s*)(&args[%d])", type.c_str(), off);
                 argsstr += buf;
 
                 if (n < descr->parameterTypes.GetLength()-1)
@@ -255,6 +264,8 @@ void hack()
             func.m_output += "}\n";
             break;
         }
+#endif // AOT_ENABLE_QUICKCALL
+
         default:
         {
             func.m_output += "extern asQWORD CallSystemFunctionNative(asCContext *context, asCScriptFunction *descr, void *obj, asDWORD *args, void *retPointer, asQWORD &retQW2);\n";

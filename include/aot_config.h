@@ -1,6 +1,8 @@
 #ifndef __INCLUDED_AOT_CONFIG_H
 #define __INCLUDED_AOT_CONFIG_H
 
+#define AOT_ENABLE_QUICKCALL 0 // Not working currently
+
 #if _MSC_VER
     #define snprintf _snprintf_s
     #define THISCALL __thiscall

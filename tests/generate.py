@@ -13,7 +13,14 @@ datatypes = {
     "int64_t": DataType("int64",  "int64_t",   64),
     "float":   DataType("float",  "float",   32),
     "double":  DataType("double", "double",  64),
-    "bool":    DataType("bool", "bool", 8)
+    "bool":    DataType("bool", "bool", 8),
+    "char&":    DataType("int8&in",   "char&",     8),
+    "short&":   DataType("int16&in",  "short&",   16),
+    "int&":     DataType("int&in",    "int&",     32),
+    "int64_t&": DataType("int64&in",  "int64_t&",   64),
+    "float&":   DataType("float&in",  "float&",   32),
+    "double&":  DataType("double&in", "double&",  64),
+    "bool&":    DataType("bool&in", "bool&", 8)
 }
 
 class Test:
@@ -31,12 +38,25 @@ tests = [
     ("float "  *32).split(),
     ("double " *32).split(),
     ("int float " * 16).split(),
-    ("int64_t double char " * 10).split()
+    ("int64_t double char " * 10).split(),
+    ["int&"],
+    ["float&"],
+    ["double&"],
+    ["int64_t&"],
+    ("int& "    * 4).split(),
+    ("float& "  * 4).split(),
+    ("double& " * 4).split(),
+    ("int& "    *32).split(),
+    ("float& "  *32).split(),
+    ("double& " *32).split(),
+    ("int& float& " * 16).split(),
+    ("int64_t& double& char& " * 10).split()
 ]
 
 _valcount = 0
 def getval(type):
     global _valcount
+    type = type.replace("&", "")
     _valcount += 1
     add = _valcount
     val = "0x%s" % ("".join(["%02d" % (i+1) for i in range (datatypes[type].bytesize)]))
@@ -85,7 +105,7 @@ def register(calltype="cdecl"):
     }
     """ % (calltype, count, ", ".join(["%s a%d" % (a,i) for i,a in enumerate(test)]),
         "assert(magic == 0x40302010);\n" if member else "",
-        "\n".join(["\tassert(a%d == (%s)%s);" % (i,a,val[i]) for i,a in enumerate(test)]))
+        "\n".join(["\tassert(a%d == (%s)%s);" % (i,a.replace("&", ""),val[i]) for i,a in enumerate(test)]))
         if "double" in test or "int64_t" in test:
             ascall += "#ifndef ANDROID // unaligned 64bit arguments are broken in AngelScript ARM at the moment\n"
         ascall += "        \"    %sfunc%d(%s);\\n\"\n" % ("test." if member else "", count, ", ".join([val[i] for i in range(len(test))]))
@@ -94,6 +114,8 @@ def register(calltype="cdecl"):
         count += 1
 
     for type in datatypes:
+        if "&" in type:
+            break
         val = getval(type)
         asname = datatypes[type].asname
         binding += "    r = engine->%s\"%s func%d()\", %sfunc%d), %s); assert(r>=0);\n" % (register, asname, count, macro, count, decl)
