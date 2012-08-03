@@ -52,7 +52,10 @@ void hack()
     func.m_output += "asDWORD *args              = context->m_regs.stackPointer;\n";
     func.m_output += "void    *retPointer        = 0;\n";
     func.m_output += "void    *obj               = 0;\n";
-    func.m_output += "int popSize                = 0;\n";
+    func.m_output += "int      popSize           = 0;\n";
+    func.m_output += "int      spos              = 0;\n";
+    func.m_output += "int      n                 = 0;\n";
+    func.m_output += "asSTypeBehaviour *beh      = 0;\n";
 
 
     if( callConv >= ICC_THISCALL )
@@ -182,6 +185,12 @@ void hack()
             for( asUINT n = 0; n < descr->parameterTypes.GetLength(); n++ )
             {
                 asCDataType &dt = descr->parameterTypes[n];
+                int flags = 0;
+                if (dt.IsObject())
+                    flags = dt.GetObjectType()->GetFlags();
+                snprintf(buf, 128, "// arg%d: %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d\n", n, dt.IsObject(), flags,dt.IsObjectHandle(), dt.IsScriptObject(), dt.IsHandleToConst(), dt.IsReference(), dt.IsPrimitive(), dt.CanBeCopied(), dt.CanBeInstanciated(),  dt.GetSizeInMemoryDWords(), dt.GetSizeOnStackDWords());
+                func.m_output += buf;
+
                 std::string type = "asDWORD";
                 switch (dt.GetSizeOnStackDWords())
                 {
@@ -203,6 +212,14 @@ void hack()
                 if (dt.IsReference())
                 {
                     funcptr += "&";
+                    if (!dt.IsObjectHandle())
+                    {
+                        type += "*";
+                        argsstr += "*";
+                    }
+                }
+                if (dt.IsObject() && !dt.IsObjectHandle() && !dt.IsReference() && (dt.GetObjectType()->flags & COMPLEX_MASK) == 0)
+                {
                     type += "*";
                     argsstr += "*";
                 }
@@ -286,8 +303,6 @@ void hack()
         // been skipped.
 
         int spos = 0;
-        func.m_output += "int spos = 0;\n";
-        func.m_output += "int n = 0;\n";
         for( asUINT n = 0; n < descr->parameterTypes.GetLength(); n++ )
         {
             bool needFree = false;
@@ -303,15 +318,15 @@ void hack()
                 !dt.IsObjectHandle() &&
                 !dt.IsReference() )
             {
-                func.m_output += "void *obj = (void*)*(asPWORD*)&args[spos];\n";
+                func.m_output += "obj = (void*)*(asPWORD*)&args[spos];\n";
                 func.m_output += "spos += AS_PTR_SIZE;\n";
                 spos += AS_PTR_SIZE;
 
 #ifndef AS_CALLEE_DESTROY_OBJ_BY_VAL
                 // If the called function doesn't destroy objects passed by value we must do so here
-                func.m_output += "asSTypeBehaviour *beh = &descr->parameterTypes[n].GetObjectType()->beh;\n";
+                func.m_output += "beh = &descr->parameterTypes[n].GetObjectType()->beh;\n";
                 func.m_output += "if( beh->destruct )\n";
-                func.m_output += "    context->m_context->m_engine->CallObjectMethod(obj, beh->destruct);\n";
+                func.m_output += "    context->m_engine->CallObjectMethod(obj, beh->destruct);\n";
 #endif
 
                 func.m_output += "context->m_engine->CallFree(obj);\n";
@@ -468,7 +483,7 @@ void hack()
         }
 
         int spos = 0;
-        func.m_output += "int spos = 0;\n";
+        func.m_output += "spos = 0;\n";
         for( asUINT n = 0; n < descr->parameterTypes.GetLength(); n++ )
         {
             if( sysFunc->paramAutoHandles[n])

@@ -6,6 +6,8 @@ find_package(PythonInterp)
 
 set(ASPATH "${PROJECT_SOURCE_DIR}/../3rdparty/angelscript/sdk/angelscript/" CACHE PATH "Directory containing angelscript")
 
+add_subdirectory(${ASPATH}/projects/cmake angelscript)
+
 if(NOT PYTHON_EXECUTABLE)
     message("Warning: Python executable not found. Going to try using the 'python' command anyway")
     set(PYTHON_EXECUTABLE python)
