@@ -155,8 +155,9 @@ def register(calltype="cdecl"):
             magicassert,
             impl
         )
+        android_ifdef = "double" in test or "int64_t" in test or (member and "MyClass" in "".join(test))
 
-        if "double" in test or "int64_t" in test:
+        if android_ifdef:
             ascall += "#ifndef ANDROID // unaligned 64bit arguments are broken in AngelScript ARM at the moment\n"
 
 
@@ -176,7 +177,7 @@ def register(calltype="cdecl"):
         args = ", ".join(args)
         ascall += "        \"    %sfunc%d(%s);\\n\"\n" % ("test." if member else "", count, args)
 
-        if "double" in test or "int64_t" in test:
+        if android_ifdef:
             ascall += "#endif\n"
         count += 1
 
@@ -223,13 +224,14 @@ def register(calltype="cdecl"):
             val = val.replace("&", "")
             val += ".magic"
 
-        if type == "double" or type == "int64_t":
+        android_ifdef = type == "double" or type == "int64_t" or (member and "MyClass" in type)
+        if android_ifdef:
             ascall += "#ifndef ANDROID // unaligned 64bit arguments are broken in AngelScript ARM at the moment\n"
 
 
 
         ascall += "        \"    assert(%sfunc%d()%s == %s(%s));\\n\"\n" % ("test." if member else "", count, extra, conv2, oldval)
-        if type == "double" or type == "int64_t":
+        if android_ifdef:
             ascall += "#endif\n"
         count += 1
 
@@ -468,7 +470,7 @@ int main(int argc, char **argv)
 
 #if AOT_GENERATE_CODE
 #ifdef ANDROID
-    #define EXTRA "/data/"
+    #define EXTRA "/data/local/"
 #else
     #define EXTRA
 #endif
