@@ -139,7 +139,7 @@ def register(calltype="cdecl"):
                     extra = "->magic"
                 else:
                     extra = ".magic"
-                type = "int"
+                type = "uint64_t"
             validate.append("\tassert(a%d%s == (%s) (%s));" % (i, extra, type, val[i]))
 
         impl = "\n".join(validate)
@@ -181,19 +181,54 @@ def register(calltype="cdecl"):
         count += 1
 
     for type in datatypes:
-        if "&" in type or "MyClass" in type:
+        if "&" in type and member:
             break
         val = getval(type)
         asname = datatypes[type].asname
+        extra = ""
+        oldval = val
+        conv = "(%s)" % type
+        if "&" in type:
+            if not "MyClass" in type:
+                t2 = type.replace("&", "")
+                cimplementation += "static %s ret_%d = %s;\n" % (t2, count, oldval)
+                oldval =val
+                val = "ret_%d" % count
+            asname = asname.replace("&in", "&")
+            conv = ""
+        conv2 = asname.replace("&", "")
+
+
+        if datatypes[type].bitsize == 0:
+            conv = ""
+            conv2 = ""
+            extra = ".magic"
+            nextra = ""
+            if "r" in type: nextra = "r"
+            if "2" in type: nextra = "2"
+            if "3" in type: nextra = "3"
+            val = "my%s1" % (nextra)
+            oldval = val + extra
+            if "r" in type:
+                val = "&" + val
+
         binding += "    r = engine->%s\"%s func%d()\", %sfunc%d), %s); assert(r>=0);\n" % (register, asname, count, macro, count, decl)
         cimplementation += """%s %s func%d()
     {
         %s
-        return (%s) %s;
-    }\n""" % (type, calltype, count, "assert(magic == 0x40302010);\n" if member else "", type, val)
+        return %s %s;
+    }\n""" % (type, calltype, count, "assert(magic == 0x40302010);\n" if member else "", conv, val)
+
+        if datatypes[type].bitsize == 0:
+            val = val.replace("&", "")
+            val += ".magic"
+
         if type == "double" or type == "int64_t":
             ascall += "#ifndef ANDROID // unaligned 64bit arguments are broken in AngelScript ARM at the moment\n"
-        ascall += "        \"    assert(%sfunc%d() == %s(%s));\\n\"\n" % ("test." if member else "", count, asname, val)
+
+
+
+        ascall += "        \"    assert(%sfunc%d()%s == %s(%s));\\n\"\n" % ("test." if member else "", count, extra, conv2, oldval)
         if type == "double" or type == "int64_t":
             ascall += "#endif\n"
         count += 1
@@ -224,15 +259,15 @@ print """
 class MyClass
 {
 public:
-    int magic;
+    uint64_t magic;
 };
 
 class MyClass2
 {
 public:
-    int magic;
+    uint64_t magic;
     MyClass2(int val)
-    : magic(val)
+    : magic((uint64_t) val)
     {
     }
 };
@@ -240,10 +275,9 @@ public:
 class MyClass3
 {
 public:
-    int magic;
-    int magic2;
+    uint64_t magic;
     MyClass3(int val)
-    : magic(val)
+    : magic((uint64_t) val)
     {
     }
     MyClass3(const MyClass3 &other)
@@ -263,14 +297,34 @@ public:
 class MyClassr
 {
 public:
-    int magic;
+    uint64_t magic;
     MyClassr(int val)
-    : magic(val)
+    : magic((uint64_t) val)
     {
     }
     ~MyClassr() {}
 };
 
+MyClass my1;
+MyClass my2;
+MyClass my3;
+MyClass my4;
+
+MyClass2 my21(0x1337BEEF);
+MyClass2 my22(0x1337BEEF-1);
+MyClass2 my23(0x1337BEEF-2);
+MyClass2 my24(0x1337BEEF-3);
+
+MyClass3 my31(0x1337BEEF);
+MyClass3 my32(0x1337BEEF-1);
+MyClass3 my33(0x1337BEEF-2);
+MyClass3 my34(0x1337BEEF-3);
+
+
+MyClassr myr1(0x1337BEEF);
+MyClassr myr2(0x1337BEEF-1);
+MyClassr myr3(0x1337BEEF-2);
+MyClassr myr4(0x1337BEEF-3);
 
 void MessageCallback(const asSMessageInfo *msg, void *param)
 {
@@ -353,26 +407,10 @@ int main(int argc, char **argv)
     asIJITCompiler *jit = new AOTCompiler(linker);
     engine->SetJITCompiler(jit);
     Test test;
-    MyClass my1; my1.magic = (0x1337BEEF);
-    MyClass my2; my2.magic = (0x1337BEEF-1);
-    MyClass my3; my3.magic = (0x1337BEEF-2);
-    MyClass my4; my4.magic = (0x1337BEEF-3);
-
-    MyClass2 my21(0x1337BEEF);
-    MyClass2 my22(0x1337BEEF-1);
-    MyClass2 my23(0x1337BEEF-2);
-    MyClass2 my24(0x1337BEEF-3);
-
-    MyClass3 my31(0x1337BEEF);
-    MyClass3 my32(0x1337BEEF-1);
-    MyClass3 my33(0x1337BEEF-2);
-    MyClass3 my34(0x1337BEEF-3);
-
-
-    MyClassr myr1(0x1337BEEF);
-    MyClassr myr2(0x1337BEEF-1);
-    MyClassr myr3(0x1337BEEF-2);
-    MyClassr myr4(0x1337BEEF-3);
+    my1.magic = (uint64_t) (0x1337BEEF);
+    my2.magic = (uint64_t) (0x1337BEEF-1);
+    my3.magic = (uint64_t) (0x1337BEEF-2);
+    my4.magic = (uint64_t) (0x1337BEEF-3);
 
     int r;
     r = engine->RegisterGlobalFunction("void assert(bool)", asFUNCTION(Assert), asCALL_GENERIC); assert(r>=0);
@@ -385,7 +423,11 @@ int main(int argc, char **argv)
     r = engine->RegisterObjectBehaviour("MyClass3", asBEHAVE_CONSTRUCT, "void f()", asFUNCTION(MyClass3_constr_def), asCALL_CDECL_OBJFIRST); assert(r >= asSUCCESS);
     r = engine->RegisterObjectBehaviour("MyClass3", asBEHAVE_DESTRUCT, "void f()", asFUNCTION(MyClass3_destr), asCALL_CDECL_OBJFIRST); assert(r >= asSUCCESS);
     r = engine->RegisterObjectMethod("MyClass3", "MyClass3 &opAssign(const MyClass3 &in)", asMETHODPR(MyClass3, operator =, (const MyClass3&), MyClass3&), asCALL_THISCALL); assert( r >= 0 );
+    r = engine->RegisterObjectProperty("MyClass", "uint64 magic", asOFFSET(MyClass,magic)); assert( r >= 0 );
+    r = engine->RegisterObjectProperty("MyClass2", "uint64 magic", asOFFSET(MyClass2,magic)); assert( r >= 0 );
+    r = engine->RegisterObjectProperty("MyClass3", "uint64 magic", asOFFSET(MyClass3,magic)); assert( r >= 0 );
     r = engine->RegisterObjectType("MyClassr", 0, asOBJ_REF | asOBJ_NOCOUNT); assert( r >= 0 );
+    r = engine->RegisterObjectProperty("MyClassr", "uint64 magic", asOFFSET(MyClassr,magic)); assert( r >= 0 );
     %s
     r = engine->RegisterGlobalProperty("Test test", &test); assert(r >= 0);
     r = engine->RegisterGlobalProperty("MyClass my1", &my1); assert(r >= 0);

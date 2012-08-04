@@ -123,9 +123,8 @@ void hack()
         case ICC_CDECL_OBJFIRST:
         case ICC_CDECL_OBJLAST:
         case ICC_THISCALL:
-        case ICC_STDCALL:
         {
-            snprintf(buf, 128, "// %s, %d\n", descr->GetName(), sysFunc->callConv);
+            snprintf(buf, 128, "// %s, %d, %d, %d, %d, %d, %d\n", descr->GetName(), sysFunc->callConv, sysFunc->takesObjByVal, sysFunc->paramSize, sysFunc->hostReturnInMemory, sysFunc->hasAutoHandles, sysFunc->scriptReturnSize);
             asCDataType &retType = descr->returnType;
             func.m_output += buf;
             snprintf(buf, 128, "// ret: %d, %d, %d, %d, %d, %d, %d\n", sysFunc->hostReturnFloat, retType.IsObject(), retType.IsReference(), retType.IsPrimitive(), retType.GetSizeInMemoryDWords(), retType.GetSizeOnStackDWords(), sysFunc->hostReturnSize);
@@ -134,7 +133,13 @@ void hack()
             std::string argsstr;
             switch (retType.GetSizeInMemoryDWords())
             {
-                case 0: funcptr += "void ";    break;
+                case 0:
+                    funcptr += "void ";
+                    if (retType.IsObject())
+                    {
+                        funcptr += "*";
+                    }
+                    break;
                 case 1:
                     if (retType.IsFloatType())
                         funcptr += "float ";
@@ -163,7 +168,7 @@ void hack()
                 default: assert(0);
             }
             if (retType.IsReference())
-                funcptr += "&";
+                funcptr += "*";
             func.m_output += "{\n";
             if (callConv == ICC_THISCALL)
                 funcptr += "(THISCALL *funcptr)(";
@@ -188,11 +193,19 @@ void hack()
                 int flags = 0;
                 if (dt.IsObject())
                     flags = dt.GetObjectType()->GetFlags();
-                snprintf(buf, 128, "// arg%d: %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d\n", n, dt.IsObject(), flags,dt.IsObjectHandle(), dt.IsScriptObject(), dt.IsHandleToConst(), dt.IsReference(), dt.IsPrimitive(), dt.CanBeCopied(), dt.CanBeInstanciated(),  dt.GetSizeInMemoryDWords(), dt.GetSizeOnStackDWords());
+                snprintf(buf, 128, "// arg%d: %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d\n", n, descr->GetParamTypeId(n), dt.IsObject(), flags,dt.IsObjectHandle(), dt.IsScriptObject(), dt.IsHandleToConst(), dt.IsReference(), dt.IsPrimitive(), dt.CanBeCopied(), dt.CanBeInstanciated(),  dt.GetSizeInMemoryDWords(), dt.GetSizeOnStackDWords());
                 func.m_output += buf;
 
                 std::string type = "asDWORD";
-                switch (dt.GetSizeOnStackDWords())
+#ifdef COMPLEX_OBJS_PASSED_BY_REF
+                bool isComplex = dt.IsObject() && ((dt.GetObjectType()->flags & COMPLEX_MASK) != 0);
+#else
+                bool isComplex = false;
+#endif
+                int size = dt.GetSizeOnStackDWords();
+                if (sysFunc->takesObjByVal && !isComplex)
+                    size = dt.GetSizeInMemoryDWords();
+                switch (size)
                 {
                     case 1:
                         if (dt.IsFloatType())
@@ -218,7 +231,7 @@ void hack()
                         argsstr += "*";
                     }
                 }
-                if (dt.IsObject() && !dt.IsObjectHandle() && !dt.IsReference() && (dt.GetObjectType()->flags & COMPLEX_MASK) == 0)
+                if (dt.IsObject() && !dt.IsObjectHandle() && !dt.IsReference() && !isComplex)
                 {
                     type += "*";
                     argsstr += "*";
@@ -251,9 +264,9 @@ void hack()
             func.m_output += funcptr;
             func.m_output += "funcptr a = (funcptr)sysFunc->func;\n";
             call = "a(" + argsstr + ");\n";
-            if (retType.IsFloatType() || (retType.IsDoubleType() && retType.GetSizeInMemoryDWords() == 1))
+            if (!retType.IsReference() && (retType.IsFloatType() || (retType.IsDoubleType() && retType.GetSizeInMemoryDWords() == 1)))
                 func.m_output += "float ret = " + call + "retQW = *(asDWORD*) &ret;\n";
-            else if (retType.IsDoubleType())
+            else if (!retType.IsReference() &&retType.IsDoubleType())
                 func.m_output += "double ret = " + call + "retQW = *(asQWORD*) &ret;\n";
             else if (retType.GetSizeInMemoryDWords() == 1)
                 func.m_output += "retQW = (asQWORD) " + call;
@@ -276,7 +289,13 @@ void hack()
             else if (retType.GetSizeInMemoryDWords())
                 assert(0);
             else
+            {
+                if (retType.IsObject())
+                {
+                    func.m_output += "retQW = (asQWORD) ";
+                }
                 func.m_output += call;
+            }
 
             func.m_output += "}\n";
             break;
