@@ -29,6 +29,11 @@ if platform.system() == "Darwin":
     dotest("-DCMAKE_OSX_ARCHITECTURES=x86_64")
     os.system("rm -rf *")
     dotest("-DCMAKE_OSX_ARCHITECTURES=i386")
+elif platform.system() == "Linux":
+    os.system("rm -rf *")
+    dotest()
+    os.system("rm -rf *")
+    dotest("-DCMAKE_CXX_FLAGS=-m32")
 else:
     os.system("cmake -E remove_directory .")
     dotest("-G \"NMake Makefiles\" -DASPATH=\"../../3rdparty/angelscript/sdk/angelscript\"")

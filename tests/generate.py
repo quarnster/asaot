@@ -1,3 +1,4 @@
+import platform
 
 class DataType:
     def __init__(self, asname, cname, bitsize):
@@ -143,7 +144,6 @@ def register(calltype="cdecl"):
             validate.append("\tassert(a%d%s == (%s) (%s));" % (i, extra, type, val[i]))
 
         impl = "\n".join(validate)
-
         cimplementation += """void %s func%d(%s)
     {
     %s
@@ -234,7 +234,8 @@ def register(calltype="cdecl"):
         count += 1
 
 register("cdecl")
-register("stdcall")
+if platform.system() != "Linux":
+    register("stdcall")
 cimplementation += """class Test
 {
 public:
