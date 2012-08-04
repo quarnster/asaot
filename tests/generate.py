@@ -182,17 +182,16 @@ def register(calltype="cdecl"):
         count += 1
 
     for type in datatypes:
-        if "&" in type and member:
-            break
         val = getval(type)
         asname = datatypes[type].asname
         extra = ""
         oldval = val
         conv = "(%s)" % type
+        cextra = ""
         if "&" in type:
             if not "MyClass" in type:
                 t2 = type.replace("&", "")
-                cimplementation += "static %s ret_%d = %s;\n" % (t2, count, oldval)
+                cextra = "static %s ret_%d = %s;\n" % (t2, count, oldval)
                 oldval =val
                 val = "ret_%d" % count
             asname = asname.replace("&in", "&")
@@ -217,8 +216,9 @@ def register(calltype="cdecl"):
         cimplementation += """%s %s func%d()
     {
         %s
+        %s
         return %s %s;
-    }\n""" % (type, calltype, count, "assert(magic == 0x40302010);\n" if member else "", conv, val)
+    }\n""" % (type, calltype, count, "assert(magic == 0x40302010);\n" if member else "", cextra, conv, val)
 
         if datatypes[type].bitsize == 0:
             val = val.replace("&", "")
