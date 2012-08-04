@@ -112,9 +112,11 @@ void hack()
     }
 
     func.m_output += "context->m_callingSystemFunction = descr;\n";
-
-    if (sysFunc->hostReturnInMemory)
+#ifdef _MSC_VER
+    // Haven't gotten thiscall's returning in memory work with msvc yet
+    if (callConv == ICC_THISCALL && sysFunc->hostReturnInMemory)
         callConv++;
+#endif
 
     switch (callConv)
     {
@@ -122,53 +124,111 @@ void hack()
         case ICC_CDECL:
         case ICC_CDECL_OBJFIRST:
         case ICC_CDECL_OBJLAST:
+        case ICC_STDCALL:
         case ICC_THISCALL:
         {
             snprintf(buf, 128, "// %s, %d, %d, %d, %d, %d, %d\n", descr->GetName(), sysFunc->callConv, sysFunc->takesObjByVal, sysFunc->paramSize, sysFunc->hostReturnInMemory, sysFunc->hasAutoHandles, sysFunc->scriptReturnSize);
             asCDataType &retType = descr->returnType;
+            bool isComplex = false;
+            if (retType.IsObject() && sysFunc->hostReturnInMemory)
+            {
+                isComplex = ((retType.GetObjectType()->flags & COMPLEX_RETURN_MASK) != 0);
+                if (callConv >= ICC_CDECL && callConv <= ICC_CDECL_OBJLAST)
+                    isComplex |= retType.GetSizeInMemoryBytes() >= CDECL_RETURN_SIMPLE_IN_MEMORY_MIN_SIZE;
+                else if (callConv == ICC_THISCALL)
+                    isComplex |= retType.GetSizeInMemoryBytes() >= THISCALL_RETURN_SIMPLE_IN_MEMORY_MIN_SIZE;
+                else if (callConv == ICC_STDCALL)
+                    isComplex |= retType.GetSizeInMemoryBytes() >= STDCALL_RETURN_SIMPLE_IN_MEMORY_MIN_SIZE;
+            }
             func.m_output += buf;
-            snprintf(buf, 128, "// ret: %d, %d, %d, %d, %d, %d, %d\n", sysFunc->hostReturnFloat, retType.IsObject(), retType.IsReference(), retType.IsPrimitive(), retType.GetSizeInMemoryDWords(), retType.GetSizeOnStackDWords(), sysFunc->hostReturnSize);
+            snprintf(buf, 128, "// ret: %d, %d, %d, %d, %d, %d, %d, %d\n", sysFunc->hostReturnFloat, retType.IsObject(), isComplex, retType.IsReference(), retType.IsPrimitive(), retType.GetSizeInMemoryDWords(), retType.GetSizeOnStackDWords(), sysFunc->hostReturnSize);
             func.m_output += buf;
             std::string funcptr("typedef ");
             std::string argsstr;
-            switch (retType.GetSizeInMemoryDWords())
+            if (!isComplex)
             {
-                case 0:
-                    funcptr += "void ";
-                    if (retType.IsObject())
-                    {
-                        funcptr += "*";
-                    }
-                    break;
-                case 1:
-                    if (retType.IsFloatType())
-                        funcptr += "float ";
-                    else
-                        funcptr += "asDWORD ";
-                    break;
-                case 2:
-                    if (retType.IsDoubleType())
-                        funcptr += "double ";
-                    else if (sysFunc->hostReturnFloat)
-                    {
-                        func.m_output += "typedef struct {float a; float b;} retstruct;\n";
+                switch (retType.GetSizeInMemoryDWords())
+                {
+                    case 0:
+                        funcptr += "void ";
+                        if (retType.IsObject())
+                        {
+                            funcptr += "*";
+                        }
+                        break;
+                    case 1:
+                        if (retType.IsFloatType())
+                            funcptr += "float ";
+                        else
+                            funcptr += "asDWORD ";
+                        break;
+                    case 2:
+                        if (retType.IsDoubleType())
+                            funcptr += "double ";
+                        else if (sysFunc->hostReturnFloat)
+                        {
+                            func.m_output += "typedef struct {float a; float b;} retstruct;\n";
+                            funcptr += "retstruct ";
+                        }
+                        else
+                            funcptr += "asQWORD ";
+                        break;
+                    case 3:
+                    case 4:
+                        if (sysFunc->hostReturnFloat)
+                            func.m_output += "typedef struct {struct {float a; float b;} a; struct {float a; float b;} b;} retstruct;\n";
+                        else
+                            func.m_output += "typedef retstruct {asQWORD a; asDWORD b;};";
                         funcptr += "retstruct ";
-                    }
-                    else
-                        funcptr += "asQWORD ";
-                    break;
-                case 3:
-                case 4:
-                    if (sysFunc->hostReturnFloat)
-                        func.m_output += "typedef struct {struct {float a; float b;} a; struct {float a; float b;} b;} retstruct;\n";
-                    else
-                        func.m_output += "typedef retstruct {asQWORD a; asDWORD b;};";
-                    funcptr += "retstruct ";
-                    break;
-                default: assert(0);
+                        break;
+                    default: assert(0);
+                }
+                if (retType.IsReference())
+                    funcptr += "*";
             }
-            if (retType.IsReference())
-                funcptr += "*";
+            else
+            {
+                func.m_output += "class __MyComplex\n{\npublic:\n";
+                if (sysFunc->hostReturnFloat)
+                {
+                    for (int i = 0; i < retType.GetSizeInMemoryDWords(); i++)
+                    {
+                        snprintf(buf, 128, "float m_%d;\n", i);
+                        func.m_output += buf;
+                    }
+                }
+                else
+                {
+                    for (int i = 0; i < retType.GetSizeInMemoryDWords(); i++)
+                    {
+                        snprintf(buf, 128, "asDWORD m_%d;\n", i);
+                        func.m_output += buf;
+                    }
+                }
+                int flags = retType.GetObjectType()->flags;
+                if (flags & asOBJ_APP_CLASS_CONSTRUCTOR)
+                {
+                    func.m_output += "\t__MyComplex() {}\n";
+                }
+                if (flags & asOBJ_APP_CLASS_COPY_CONSTRUCTOR)
+                {
+                    func.m_output += "\t__MyComplex(const __MyComplex &other) {  }\n";
+                }
+                if (flags & asOBJ_APP_CLASS_DESTRUCTOR)
+                {
+                    func.m_output += "\t~__MyComplex() {}\n";
+                }
+                if (flags & asOBJ_APP_CLASS_ASSIGNMENT)
+                {
+                    func.m_output += "\t__MyComplex &operator=(const __MyComplex &other) { return *this; }\n";
+                }
+                func.m_output += "};\n";
+
+                funcptr += "__MyComplex ";
+                if (retType.IsReference())
+                    funcptr += "&";
+            }
+
             func.m_output += "{\n";
             if (callConv == ICC_THISCALL)
                 funcptr += "(THISCALL *funcptr)(";
@@ -177,6 +237,7 @@ void hack()
             else
                 funcptr += "(*funcptr)(";
             int off = 0;
+
             if (callConv == ICC_CDECL_OBJFIRST || callConv == ICC_THISCALL)
             {
                 funcptr += "void*";
@@ -198,12 +259,12 @@ void hack()
 
                 std::string type = "asDWORD";
 #ifdef COMPLEX_OBJS_PASSED_BY_REF
-                bool isComplex = dt.IsObject() && ((dt.GetObjectType()->flags & COMPLEX_MASK) != 0);
+                bool isComplexRef = dt.IsObject() && ((dt.GetObjectType()->flags & COMPLEX_MASK) != 0);
 #else
-                bool isComplex = false;
+                bool isComplexRef = false;
 #endif
                 int size = dt.GetSizeOnStackDWords();
-                if (sysFunc->takesObjByVal && !isComplex)
+                if (sysFunc->takesObjByVal && !isComplexRef)
                     size = dt.GetSizeInMemoryDWords();
                 switch (size)
                 {
@@ -231,7 +292,7 @@ void hack()
                         argsstr += "*";
                     }
                 }
-                if (dt.IsObject() && !dt.IsObjectHandle() && !dt.IsReference() && !isComplex)
+                if (dt.IsObject() && !dt.IsObjectHandle() && !dt.IsReference() && !isComplexRef)
                 {
                     type += "*";
                     argsstr += "*";
@@ -264,37 +325,44 @@ void hack()
             func.m_output += funcptr;
             func.m_output += "funcptr a = (funcptr)sysFunc->func;\n";
             call = "a(" + argsstr + ");\n";
-            if (!retType.IsReference() && (retType.IsFloatType() || (retType.IsDoubleType() && retType.GetSizeInMemoryDWords() == 1)))
-                func.m_output += "float ret = " + call + "retQW = *(asDWORD*) &ret;\n";
-            else if (!retType.IsReference() &&retType.IsDoubleType())
-                func.m_output += "double ret = " + call + "retQW = *(asQWORD*) &ret;\n";
-            else if (retType.GetSizeInMemoryDWords() == 1)
-                func.m_output += "retQW = (asQWORD) " + call;
-            else if (retType.GetSizeInMemoryDWords() == 2)
+            if (!isComplex)
             {
-                if (sysFunc->hostReturnFloat)
+                if (!retType.IsReference() && (retType.IsFloatType() || (retType.IsDoubleType() && retType.GetSizeInMemoryDWords() == 1)))
+                    func.m_output += "float ret = " + call + "retQW = *(asDWORD*) &ret;\n";
+                else if (!retType.IsReference() &&retType.IsDoubleType())
+                    func.m_output += "double ret = " + call + "retQW = *(asQWORD*) &ret;\n";
+                else if (retType.GetSizeInMemoryDWords() == 1)
+                    func.m_output += "retQW = (asQWORD) " + call;
+                else if (retType.GetSizeInMemoryDWords() == 2)
+                {
+                    if (sysFunc->hostReturnFloat)
+                    {
+                        func.m_output += "retstruct ret = " + call;
+                        func.m_output += "retQW = *(asQWORD*) &ret;\n";
+                    }
+                    else
+                        func.m_output += "retQW = (asQWORD) " + call;
+                }
+                else if (retType.GetSizeInMemoryDWords() > 2)
                 {
                     func.m_output += "retstruct ret = " + call;
-                    func.m_output += "retQW = *(asQWORD*) &ret;\n";
+                    func.m_output += "retQW  = *(asQWORD*) &ret.a;\n";
+                    func.m_output += "retQW2 = *(asQWORD*) &ret.b;\n";
                 }
+                else if (retType.GetSizeInMemoryDWords())
+                    assert(0);
                 else
-                    func.m_output += "retQW = (asQWORD) " + call;
+                {
+                    if (retType.IsObject())
+                    {
+                        func.m_output += "retQW = (asQWORD) ";
+                    }
+                    func.m_output += call;
+                }
             }
-            else if (retType.GetSizeInMemoryDWords() > 2)
-            {
-                func.m_output += "retstruct ret = " + call;
-                func.m_output += "retQW  = *(asQWORD*) &ret.a;\n";
-                func.m_output += "retQW2 = *(asQWORD*) &ret.b;\n";
-            }
-            else if (retType.GetSizeInMemoryDWords())
-                assert(0);
             else
             {
-                if (retType.IsObject())
-                {
-                    func.m_output += "retQW = (asQWORD) ";
-                }
-                func.m_output += call;
+                func.m_output += "*(__MyComplex*)retPointer = " + call + ";";
             }
 
             func.m_output += "}\n";

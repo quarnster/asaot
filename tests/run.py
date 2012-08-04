@@ -12,7 +12,7 @@ def replace(a, b):
     f.close()
 
 def dotest(config=""):
-    make = "make test2 && ./test2"
+    make = "make -j8 test2 && ./test2"
     if platform.system() == "Windows":
         make = "nmake test2 && test2"
 
