@@ -466,7 +466,7 @@ int main(int argc, char **argv)
     r = ctx->Execute();
     assert(r == asEXECUTION_FINISHED);
 
-    printf("all is good %%d\\n", AOT_GENERATE_CODE);
+    printf("all is good %%d, %%d\\n", AOT_GENERATE_CODE, sizeof(void*));
 
 #if AOT_GENERATE_CODE
 #ifdef ANDROID
