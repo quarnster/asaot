@@ -155,11 +155,6 @@ def register(calltype="cdecl"):
             magicassert,
             impl
         )
-        android_ifdef = "double" in test or "int64_t" in test or (member and "MyClass" in "".join(test))
-
-        if android_ifdef:
-            ascall += "#ifndef ANDROID // unaligned 64bit arguments are broken in AngelScript ARM at the moment\n"
-
 
         mc = 1
         args = []
@@ -176,9 +171,6 @@ def register(calltype="cdecl"):
 
         args = ", ".join(args)
         ascall += "        \"    %sfunc%d(%s);\\n\"\n" % ("test." if member else "", count, args)
-
-        if android_ifdef:
-            ascall += "#endif\n"
         count += 1
 
     for type in datatypes:
@@ -224,15 +216,7 @@ def register(calltype="cdecl"):
             val = val.replace("&", "")
             val += ".magic"
 
-        android_ifdef = type == "double" or type == "int64_t" or (member and "MyClass" in type)
-        if android_ifdef:
-            ascall += "#ifndef ANDROID // unaligned 64bit arguments are broken in AngelScript ARM at the moment\n"
-
-
-
         ascall += "        \"    assert(%sfunc%d()%s == %s(%s));\\n\"\n" % ("test." if member else "", count, extra, conv2, oldval)
-        if android_ifdef:
-            ascall += "#endif\n"
         count += 1
 
 register("cdecl")
@@ -418,9 +402,9 @@ int main(int argc, char **argv)
     int r;
     r = engine->RegisterGlobalFunction("void assert(bool)", asFUNCTION(Assert), asCALL_GENERIC); assert(r>=0);
     r = engine->RegisterObjectType("Test", 0, asOBJ_REF | asOBJ_NOHANDLE); assert( r >= 0 );
-    r = engine->RegisterObjectType("MyClass", sizeof(MyClass), asOBJ_VALUE | asOBJ_POD | asOBJ_APP_CLASS | asOBJ_APP_CLASS_ALLINTS); assert( r >= 0 );
-    r = engine->RegisterObjectType("MyClass2", sizeof(MyClass2), asOBJ_VALUE | asOBJ_POD | asOBJ_APP_CLASS | asOBJ_APP_CLASS_ALLINTS | asOBJ_APP_CLASS_CONSTRUCTOR); assert( r >= 0 );
-    r = engine->RegisterObjectType("MyClass3", sizeof(MyClass3), asOBJ_VALUE | asOBJ_APP_CLASS | asOBJ_APP_CLASS_CONSTRUCTOR | asOBJ_APP_CLASS_DESTRUCTOR | asOBJ_APP_CLASS_COPY_CONSTRUCTOR | asOBJ_APP_CLASS_ASSIGNMENT); assert( r >= 0 );
+    r = engine->RegisterObjectType("MyClass", sizeof(MyClass), asOBJ_VALUE | asOBJ_POD | asOBJ_APP_CLASS | asOBJ_APP_CLASS_ALLINTS | asOBJ_APP_CLASS_ALIGN8); assert( r >= 0 );
+    r = engine->RegisterObjectType("MyClass2", sizeof(MyClass2), asOBJ_VALUE | asOBJ_POD | asOBJ_APP_CLASS | asOBJ_APP_CLASS_ALLINTS | asOBJ_APP_CLASS_CONSTRUCTOR  | asOBJ_APP_CLASS_ALIGN8); assert( r >= 0 );
+    r = engine->RegisterObjectType("MyClass3", sizeof(MyClass3), asOBJ_VALUE | asOBJ_APP_CLASS | asOBJ_APP_CLASS_CONSTRUCTOR | asOBJ_APP_CLASS_DESTRUCTOR | asOBJ_APP_CLASS_COPY_CONSTRUCTOR | asOBJ_APP_CLASS_ASSIGNMENT  | asOBJ_APP_CLASS_ALIGN8); assert( r >= 0 );
     r = engine->RegisterObjectBehaviour("MyClass3", asBEHAVE_CONSTRUCT, "void f(int m)", asFUNCTION(MyClass3_constr), asCALL_CDECL_OBJFIRST); assert(r >= asSUCCESS);
     r = engine->RegisterObjectBehaviour("MyClass3", asBEHAVE_CONSTRUCT, "void f(const MyClass3&in)", asFUNCTION(MyClass3_constr_copy), asCALL_CDECL_OBJFIRST); assert(r >= asSUCCESS);
     r = engine->RegisterObjectBehaviour("MyClass3", asBEHAVE_CONSTRUCT, "void f()", asFUNCTION(MyClass3_constr_def), asCALL_CDECL_OBJFIRST); assert(r >= asSUCCESS);
