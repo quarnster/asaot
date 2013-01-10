@@ -1,7 +1,7 @@
 #ifndef __INCLUDED_AOT_CONFIG_H
 #define __INCLUDED_AOT_CONFIG_H
 
-#define AOT_ENABLE_QUICKCALL 1
+#define AOT_ENABLE_QUICKCALL 0
 
 #if _MSC_VER
     #define snprintf _snprintf_s
